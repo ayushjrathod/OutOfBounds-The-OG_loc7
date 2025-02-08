@@ -15,11 +15,13 @@ export async function GET() {
     const expenses = collections.flatMap((doc: any) =>
       doc.expenses.map((exp: any) => ({
         expenseId: exp.expenseId,
+        description: exp.description,
         date: new Date(exp.date),
         employeeId: exp.employeeId || doc.employeeId,
         status: exp.status,
         amount: exp.amount,
-        // ...include other fields as necessary...
+        fraudScore: exp.fraudScore,
+        isAnomaly: exp.isAnomaly,
       }))
     );
     return NextResponse.json(expenses);

@@ -15,10 +15,13 @@ export async function GET() {
     const expenses = collections.flatMap((doc: any) =>
       doc.expenses.map((exp: any) => ({
         expenseId: exp.expenseId,
-        date: new Date(exp.date),
+        description: exp.description,
+        submittedDate: exp.submittedDate,
+        approvalDate: exp.approvalDate,
         employeeId: exp.employeeId || doc.employeeId,
         status: exp.status,
         amount: exp.amount,
+        rejectionReason: exp.rejectionReason,
         // ...include other fields as necessary...
       }))
     );

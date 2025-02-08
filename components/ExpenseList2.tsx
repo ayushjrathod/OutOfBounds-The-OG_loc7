@@ -4,10 +4,13 @@ import Link from "next/link";
 
 interface Expense {
   expenseId: string;
+  description: string;
   date: Date;
   employeeId?: string;
   status: string;
   amount: number;
+  fraudScore: number;
+  isAnomaly: boolean;
 }
 
 interface ExpenseListProps {
@@ -21,11 +24,13 @@ export function ExpenseList2({ expenses, showEmployeeId = false, linkPrefix }: E
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Expense ID</TableHead>
+          <TableHead>Description</TableHead>
           {showEmployeeId && <TableHead>Employee ID</TableHead>}
           <TableHead>Date</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Amount</TableHead>
+          <TableHead>Fraud Score</TableHead>
+          <TableHead>Anomaly</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -33,7 +38,7 @@ export function ExpenseList2({ expenses, showEmployeeId = false, linkPrefix }: E
           <TableRow key={expense.expenseId}>
             <TableCell>
               <Link href={`${linkPrefix}/${expense.expenseId}`} className="text-blue-600 hover:underline">
-                {expense.expenseId}
+                {expense.description}
               </Link>
             </TableCell>
             {showEmployeeId && <TableCell>{expense.employeeId}</TableCell>}
@@ -46,6 +51,8 @@ export function ExpenseList2({ expenses, showEmployeeId = false, linkPrefix }: E
               <Badge variant={expense.status === "Approved" ? "default" : "destructive"}>{expense.status}</Badge>
             </TableCell>
             <TableCell>${expense.amount.toFixed(2)}</TableCell>
+            <TableCell>{(expense.fraudScore * 100).toFixed(1)}%</TableCell>
+            <TableCell>{expense.isAnomaly ? "Yes" : "No"}</TableCell>
           </TableRow>
         ))}
       </TableBody>

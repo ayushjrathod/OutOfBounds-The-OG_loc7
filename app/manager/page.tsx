@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 
 export default function UserDashboard() {
-  // Changed: initialize "data" as an empty array instead of null
   const [data, setData] = useState([]);
 
   useEffect(() => {
@@ -14,7 +13,9 @@ export default function UserDashboard() {
         method: "GET",
       });
       const result = await res.json();
-      setData(result);
+      // Sort expenses by fraudScore in descending order
+      const sortedData = result.sort((a: any, b: any) => b.fraudScore - a.fraudScore);
+      setData(sortedData);
     };
 
     fetchData();

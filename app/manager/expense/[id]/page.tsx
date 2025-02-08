@@ -3,12 +3,14 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, CheckCircle, ZoomIn, ZoomOut } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, MouseEvent } from "react";
+import { MouseEvent, useEffect, useState } from "react";
 import test from "../../../../endpoints/receipt images/dmart.jpg";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 export default function ExpenseDetails({ params }: { params: { id: string } }) {
   const [expense, setExpense] = useState<any>(null);
@@ -20,7 +22,10 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [isDeclineDialogOpen, setIsDeclineDialogOpen] = useState(false);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     async function fetchExpense() {
@@ -54,15 +59,34 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
 
       if (res.ok) {
         setStatus("Approved");
-        // Optionally show success message
+        toast({
+          title: "Expense Approved",
+          description: `Expense ${params.id} has been approved successfully.`,
+          variant: "default",
+        });
+      } else {
+        throw new Error("Failed to approve expense");
       }
     } catch (error) {
       console.error("Failed to approve:", error);
-      // Optionally show error message
+      toast({
+        title: "Error",
+        description: "Failed to approve expense. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleDecline = async () => {
+    if (!rejectionReason.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide a reason for declining the expense.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const res = await fetch(`/api/db/manager/expenses?id=${params.id}`, {
         method: "PUT",
@@ -71,17 +95,29 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
         },
         body: JSON.stringify({
           status: "Declined",
-          reason: "Expense declined by manager", // You might want to add a reason input field
+          reason: rejectionReason,
         }),
       });
 
       if (res.ok) {
         setStatus("Declined");
-        // Optionally show success message
+        setIsDeclineDialogOpen(false);
+        setRejectionReason("");
+        toast({
+          title: "Expense Declined",
+          description: `Expense ${params.id} has been declined.`,
+          variant: "default",
+        });
+      } else {
+        throw new Error("Failed to decline expense");
       }
     } catch (error) {
       console.error("Failed to decline:", error);
-      // Optionally show error message
+      toast({
+        title: "Error",
+        description: "Failed to decline expense. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -235,9 +271,37 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
           <Button variant="outline" onClick={() => router.push("/manager")}>
             Back
           </Button>
-          <Button variant="destructive" onClick={handleDecline} disabled={status !== "Pending"}>
-            Decline
-          </Button>
+          <Dialog open={isDeclineDialogOpen} onOpenChange={setIsDeclineDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive" disabled={status !== "Pending"}>
+                Decline
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Decline Expense</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <label htmlFor="reason" className="block text-sm font-medium mb-2">
+                  Reason for declining
+                </label>
+                <Input
+                  id="reason"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Enter reason for declining"
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDeclineDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={handleDecline}>
+                  Confirm Decline
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Button variant="default" onClick={handleApprove} disabled={status !== "Pending"}>
             Approve
           </Button>
