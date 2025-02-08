@@ -10,7 +10,7 @@ const EmployeeExpenses = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("http://localhost:8080/api/analytics/employee-expenses");
+        const response = await axios.get("http://localhost:8000/api/analytics/employee-expenses");
         setData(response.data);
       } catch (error) {
         console.error("Error fetching employee expenses:", error);

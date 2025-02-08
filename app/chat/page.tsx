@@ -7,6 +7,7 @@ import axios from "axios";
 import { Bot, User } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id: number;
@@ -39,9 +40,10 @@ export default function ChatBot() {
 
 function ChatBotContent() {
   const searchParams = useSearchParams();
-  const initialMessage = searchParams.get("input") || ""; // Get initial message from URL query parameter
+  const initialMessage = searchParams.get("input") || "";
   const router = useRouter();
-  const backendUrl = "https://backend.outofbounds.live";
+  const backendUrl = "http://localhost:8000"; // Update this to your FastAPI backend URL
+  const employeeId = "EMP001"; // Hardcoded employee ID
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>("");
@@ -129,17 +131,15 @@ function ChatBotContent() {
   };
 
   const sendUserMessage = async (message: string) => {
-    if (!sessionId) return;
-
     setMessages((prev) => [...prev, { id: Date.now(), role: "user", content: message }]);
 
     try {
       setIsLoading(true);
-      const response = await axios.post<MessageResponse>(
-        `${backendUrl}/chat/message`,
+      const response = await axios.post(
+        `${backendUrl}/emp_bot/query`,
         {
-          message,
-          session_id: sessionId,
+          employee_id: employeeId,
+          question: message,
         },
         {
           headers: {
@@ -153,18 +153,19 @@ function ChatBotContent() {
         {
           id: Date.now(),
           role: "bot",
-          content: response.data.message,
+          content: response.data.response,
         },
       ]);
-
-      if (response.data.is_complete) {
-        setChatComplete(true);
-        await fetchReferences(sessionId);
-        // Navigate to dashboard with session_id
-        router.push(`/dashboard?session_id=${sessionId}`);
-      }
     } catch (error) {
       console.error("Error sending message:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          role: "bot",
+          content: "Sorry, I encountered an error while processing your request.",
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -209,7 +210,9 @@ function ChatBotContent() {
                     : "border-zinc-800/20 bg-gradient-to-br from-zinc-950/90 to-zinc-900/70"
                 )}
               >
-                <p className="text-base leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                <div className="prose prose-invert prose-strong:text-blue-500 prose-strong:font-bold max-w-none [&>*]:text-white [&_strong]:text-blue-400">
+                  <ReactMarkdown>{m.content}</ReactMarkdown>
+                </div>
               </div>
               {m.role === "user" && (
                 <div className="w-8 h-8 rounded-full border border-zinc-700/30 text-white flex items-center justify-center">
@@ -226,7 +229,7 @@ function ChatBotContent() {
               </div>
               <div className="max-w-[80%] rounded-2xl px-4 py-2 border backdrop-blur-sm border-zinc-800/20 bg-gradient-to-br from-zinc-950/90 to-zinc-900/70">
                 <div className="flex items-center space-x-2">
-                  <p className="text-zinc-400">Checking if information is complete or not</p>
+                  <p className="text-zinc-400">Generating response...</p>
                   <div className="flex space-x-1">
                     <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                     <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.2s]"></span>

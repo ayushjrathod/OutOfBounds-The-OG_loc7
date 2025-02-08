@@ -10,7 +10,7 @@ const VendorSpending = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("http://localhost:8080/api/analytics/vendor-spending");
+        const response = await axios.get("http://localhost:8000/api/analytics/vendor-spending");
         setData(response.data);
       } catch (error) {
         console.error("Error fetching vendor spending:", error);

@@ -10,7 +10,7 @@ const FraudAnalysis = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("http://localhost:8080/api/analytics/fraud-analysis");
+        const response = await axios.get("http://localhost:8000/api/analytics/fraud-analysis");
         const formattedData = response.data.map((item) => ({
           department: item._id.departmentId,
           fraudScore: item.avg_fraud_score,

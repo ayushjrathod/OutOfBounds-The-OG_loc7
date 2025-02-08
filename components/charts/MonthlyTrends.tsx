@@ -10,7 +10,7 @@ const MonthlyTrends = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("http://localhost:8080/api/analytics/monthly-trends");
+        const response = await axios.get("http://localhost:8000/api/analytics/monthly-trends");
         const formattedData = response.data.map((item) => ({
           month: `${item._id.year}-${String(item._id.month).padStart(2, "0")}`,
           amount: item.total_amount,

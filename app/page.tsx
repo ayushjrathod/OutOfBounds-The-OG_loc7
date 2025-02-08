@@ -11,6 +11,7 @@ export default function Home() {
     { name: "Home", link: "/", icon: <HomeIcon /> },
     { name: "About", link: "#about" },
     { name: "Upload", link: "/upload" },
+    { name: "ChatBot", link: "/chat" },
   ];
   return (
     <div className="relative bg-black z-50">

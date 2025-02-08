@@ -9,7 +9,7 @@ const CategoryDistribution = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("http://localhost:8080/api/analytics/category-distribution");
+        const response = await axios.get("http://localhost:8000/api/analytics/category-distribution");
         setData(response.data);
       } catch (error) {
         console.error("Error fetching category distribution:", error);

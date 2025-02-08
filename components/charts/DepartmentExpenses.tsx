@@ -12,7 +12,7 @@ const DepartmentExpenses = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("http://localhost:8080/api/analytics/department-expenses");
+        const response = await axios.get("http://localhost:8000/api/analytics/department-expenses");
         // Format data for pie chart
         const formattedData = response.data.map((item) => ({
           name: item._id,
