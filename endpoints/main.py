@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-from utils import ExpenseCreate, process_expense, encode_image
+from utils import ExpenseCreate, process_expense
 import mimetypes
 import os
 from dotenv import load_dotenv
@@ -60,8 +60,8 @@ async def create_expense(
     expenseType: str = Form(...),
     description: str = Form(...),
     vendor: str = Form(None),
-    categories: str = Form(...),  # Added categories field
-    receipt: UploadFile = File(...)
+    categories: str = Form(...),
+    receiptImage: str = Form(...)  # Changed to accept Cloudinary URL
 ):
     # First validate employee and department existence
     try:
@@ -123,40 +123,17 @@ async def create_expense(
             detail="Categories must be comma-separated values"
         )
 
-    # Validate file type
-    content_type = receipt.content_type
-    if not content_type:
-        content_type, _ = mimetypes.guess_type(receipt.filename)
-    
-    allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf']
-    if not content_type or not any(content_type.startswith(t) for t in allowed_types):
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Invalid file type. Supported types: {', '.join(allowed_types)}"
-        )
-        
     try:
-        # Limit file size (e.g., 10MB)
-        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-        file_bytes = await receipt.read()
-        if len(file_bytes) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"File size too large. Maximum size: {MAX_FILE_SIZE/1024/1024:.1f}MB"
-            )
-            
-        base64_file = encode_image(file_bytes)
-        
-        # Create expense object with content type
+        # Create expense object with Cloudinary URL
         expense = ExpenseCreate(
             employeeId=employeeId,
             departmentId=departmentId,
             expenseType=expenseType,
             description=description,
             vendor=vendor,
-            categories=categories_list,  # Add categories
-            receipt_image=base64_file,
-            content_type=content_type  # Add content type
+            categories=categories_list,
+            receipt_image=receiptImage,  # Use Cloudinary URL directly
+            content_type="image/url"
         )
         
         # Process and store the expense
@@ -176,16 +153,7 @@ async def create_expense(
             detail="An error occurred while processing the expense"
         )
 
-@app.get("/api/files/{file_path:path}")
-async def get_file(file_path: str):
-    """
-    Retrieve a file from the server_files directory.
-    """
-    full_path = os.path.join("server_files", file_path)
-    if not os.path.exists(full_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(full_path)
-
+# Remove the /api/files endpoint since we're using Cloudinary
 
 # MongoDB connection setup
 emp_bot_mongo_uri = "mongodb+srv://nehacodes1415:1234@cluster0.ocojt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
