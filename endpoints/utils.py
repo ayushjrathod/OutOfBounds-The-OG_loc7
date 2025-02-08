@@ -212,47 +212,43 @@ def process_expense(expense: ExpenseCreate, db) -> dict:
     try:
         content_type = expense.content_type
         
-        # Clean up base64 data before processing
-        # try:
-        #     # Remove any whitespace and newlines
-        #     clean_base64 = expense.receipt_image.strip()
-        #     # Ensure proper padding
-        #     missing_padding = len(clean_base64) % 4
-        #     if missing_padding:
-        #         clean_base64 += '=' * (4 - missing_padding)
-            
-        #     # Test decode to validate base64
-        #     base64.b64decode(clean_base64)
-        #     expense.receipt_image = clean_base64
-        # except Exception as e:
-        #     raise ValueError(f"Invalid receipt image data: {str(e)}")
-
-        # Save the receipt to a file
-        try:
-            # Create the server_files directory if it doesn't exist
-            server_files_dir = "server_files"
-            if not os.path.exists(server_files_dir):
-                os.makedirs(server_files_dir)
-
-            # Generate a unique filename
-            file_extension = mimetypes.guess_extension(content_type)
-            filename = f"{uuid.uuid4()}{file_extension}"
-            file_path = os.path.join(server_files_dir, filename)
-
-            # Decode base64 and save the file
-            with open(file_path, "wb") as f:
-                f.write(base64.b64decode(expense.receipt_image))
-        except Exception as e:
-            raise ValueError(f"Failed to save receipt file: {str(e)}")
-
-        # Process receipt based on content type
-        if content_type == "application/pdf":
-            pdf_bytes = base64.b64decode(expense.receipt_image)
-            text_content = extract_text_from_pdf(pdf_bytes)
-            receipt_data = analyze_receipt_text(text_content)
+        # Skip file saving for Cloudinary URLs
+        if content_type == "image/url":
+            # For URLs, we'll analyze the receipt differently or skip analysis
+            receipt_data = {
+                "items": [],
+                "total_amount": 0.0,
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "vendor": expense.vendor or "Unknown",
+                "bill_number": None
+            }
         else:
-            # For images (jpeg, jpg, png)
-            receipt_data = analyze_receipt(expense.receipt_image, content_type)
+            # Original file processing logic for non-URL uploads
+            try:
+                # Create the server_files directory if it doesn't exist
+                server_files_dir = "server_files"
+                if not os.path.exists(server_files_dir):
+                    os.makedirs(server_files_dir)
+
+                # Generate a unique filename
+                file_extension = mimetypes.guess_extension(content_type)
+                filename = f"{uuid.uuid4()}{file_extension}"
+                file_path = os.path.join(server_files_dir, filename)
+
+                # Decode base64 and save the file
+                with open(file_path, "wb") as f:
+                    f.write(base64.b64decode(expense.receipt_image))
+            except Exception as e:
+                raise ValueError(f"Failed to save receipt file: {str(e)}")
+
+            # Process receipt based on content type
+            if content_type == "application/pdf":
+                pdf_bytes = base64.b64decode(expense.receipt_image)
+                text_content = extract_text_from_pdf(pdf_bytes)
+                receipt_data = analyze_receipt_text(text_content)
+            else:
+                # For images (jpeg, jpg, png)
+                receipt_data = analyze_receipt(expense.receipt_image, content_type)
 
         # Check if bill number already exists
         bill_number = receipt_data.get('bill_number')
@@ -278,7 +274,7 @@ def process_expense(expense: ExpenseCreate, db) -> dict:
                 "vendor": receipt_data.get("vendor", expense.vendor or "Unknown"),
                 "description": expense.description,
                 "categories": expense.categories,
-                "receiptImage": file_path,  # Store the file path
+                "receiptImage": expense.receipt_image,  # Store Cloudinary URL directly
                 "bill_number": receipt_data.get("bill_number"),
                 "item_details": receipt_data.get("items", []),
                 "aiSummary": json.dumps(receipt_data),

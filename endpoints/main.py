@@ -23,7 +23,7 @@ app.add_middleware(
 
 # MongoDB Atlas connection with error handling
 try:
-    uri = os.getenv('MONGO_URL_prathamesh')
+    uri = os.getenv('MONGODB_URL_neha')
     client = MongoClient(uri, server_api=ServerApi('1'))
     # Test the connection
     client.admin.command('ping')
@@ -57,8 +57,8 @@ async def create_expense(
     expenseType: str = Form(...),
     description: str = Form(...),
     vendor: str = Form(None),
-    categories: str = Form(...),  # Added categories field
-    receipt: UploadFile = File(...)
+    categories: str = Form(...),
+    receiptImage: str = Form(...)  # Changed from receipt: UploadFile
 ):
     # First validate employee and department existence
     try:
@@ -120,40 +120,17 @@ async def create_expense(
             detail="Categories must be comma-separated values"
         )
 
-    # Validate file type
-    content_type = receipt.content_type
-    if not content_type:
-        content_type, _ = mimetypes.guess_type(receipt.filename)
-    
-    allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf']
-    if not content_type or not any(content_type.startswith(t) for t in allowed_types):
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Invalid file type. Supported types: {', '.join(allowed_types)}"
-        )
-        
     try:
-        # Limit file size (e.g., 10MB)
-        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-        file_bytes = await receipt.read()
-        if len(file_bytes) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"File size too large. Maximum size: {MAX_FILE_SIZE/1024/1024:.1f}MB"
-            )
-            
-        base64_file = encode_image(file_bytes)
-        
-        # Create expense object with content type
+        # Create expense object with Cloudinary URL
         expense = ExpenseCreate(
             employeeId=employeeId,
             departmentId=departmentId,
             expenseType=expenseType,
             description=description,
             vendor=vendor,
-            categories=categories_list,  # Add categories
-            receipt_image=base64_file,
-            content_type=content_type  # Add content type
+            categories=categories_list,
+            receipt_image=receiptImage,  # Use Cloudinary URL
+            content_type="image/url"  # New content type for URLs
         )
         
         # Process and store the expense

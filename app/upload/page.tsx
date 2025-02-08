@@ -9,6 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle, FileText, Upload } from "lucide-react";
 import { useState } from "react";
 
+const cloudUrl = process.env.NEXT_PUBLIC_CLOUDINARY_URL || "";
+const uploadPreset = process.env.NEXT_PUBLIC_CLOUD_UPLOAD_PRESET;
+
+// Add this validation early in the component
+if (!uploadPreset) {
+  console.error("Upload preset is not configured!");
+}
+
 export default function ReceiptFraudDetection() {
   const [result, setResult] = useState<{ status: string; expense_id?: string; message?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -16,33 +24,78 @@ export default function ReceiptFraudDetection() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsLoading(true);
-
     const formData = new FormData(e.currentTarget);
     const fileInput = formData.get("receipt") as File;
 
-    // Validate file type and size
-    if (fileInput && fileInput.size > 10 * 1024 * 1024) {
-      setResult({
-        status: "error",
-        message: "File size must be less than 10MB",
-      });
+    if (!fileInput) {
+      console.error("Debug: No file selected");
+      setResult({ status: "error", message: "No file selected." });
       setIsLoading(false);
       return;
     }
 
+    // Debug file details
+    console.log("Debug: File details:", {
+      name: fileInput.name,
+      type: fileInput.type,
+      size: `${(fileInput.size / 1024).toFixed(2)} KB`,
+    });
+
+    // 1) Upload to Cloudinary
+    const cloudForm = new FormData();
+    cloudForm.append("file", fileInput);
+    cloudForm.append("upload_preset", uploadPreset || "ml_default"); // Ensure preset is set
+
+    console.log("Debug: Cloudinary request details:", {
+      url: cloudUrl,
+      uploadPreset: uploadPreset,
+      fileType: fileInput.type,
+      formData: Object.fromEntries(cloudForm.entries()), // Log form data
+    });
+
     try {
+      if (!uploadPreset) {
+        throw new Error("Cloudinary upload preset is not configured");
+      }
+      console.log("Debug: Initiating Cloudinary upload...");
+      const cloudRes = await fetch(cloudUrl, {
+        method: "POST",
+        body: cloudForm,
+      });
+
+      const cloudData = await cloudRes.json();
+      console.log("Debug: Cloudinary response:", {
+        status: cloudRes.status,
+        statusText: cloudRes.statusText,
+        data: cloudData,
+      });
+
+      if (!cloudRes.ok) {
+        throw new Error(`Cloudinary upload failed: ${cloudData.error?.message || "Unknown error"}`);
+      }
+
+      const imageUrl = cloudData.secure_url;
+      if (!imageUrl) throw new Error("No secure URL in Cloudinary response");
+
+      console.log("Debug: Successfully uploaded to Cloudinary:", imageUrl);
+
+      // 2) Delete file from form and add image URL
+      formData.delete("receipt");
+      formData.append("receiptImage", imageUrl);
+
+      // 3) Send the updated form data
+      console.log("Debug: Sending expense data to backend...");
       const response = await fetch("http://localhost:8000/api/expenses/", {
         method: "POST",
         body: formData,
       });
-
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to submit expense");
-      }
+      console.log("Debug: Backend response:", data);
+
+      if (!response.ok) throw new Error(data.detail || "Failed to submit expense");
       setResult(data);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Debug: Error details:", error);
       setResult({
         status: "error",
         message: error instanceof Error ? error.message : "Failed to submit expense",
@@ -72,11 +125,11 @@ export default function ReceiptFraudDetection() {
                   <SelectValue placeholder="Select a department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
-                  <SelectItem value="engineering">Engineering</SelectItem>
-                  <SelectItem value="hr">Human Resources</SelectItem>
-                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="DEP001">Sales</SelectItem>
+                  <SelectItem value="DEP002">Finance</SelectItem>
+                  <SelectItem value="DEP003">Human Resources</SelectItem>
+                  <SelectItem value="DEP004">Research</SelectItem>
+                  <SelectItem value="DEP005">Information Technology</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -92,6 +145,26 @@ export default function ReceiptFraudDetection() {
                   <SelectItem value="supplies">Supplies</SelectItem>
                   <SelectItem value="equipment">Equipment</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="categories">Expense Category</Label>
+              <Select name="categories" required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Travel Expenses">Travel Expenses</SelectItem>
+                  <SelectItem value="Work Equipment & Supplies">Work Equipment & Supplies</SelectItem>
+                  <SelectItem value="Meals & Entertainment">Meals & Entertainment</SelectItem>
+                  <SelectItem value="Internet & Phone Bills">Internet & Phone Bills</SelectItem>
+                  <SelectItem value="Professional Development">Professional Development</SelectItem>
+                  <SelectItem value="Health & Wellness">Health & Wellness</SelectItem>
+                  <SelectItem value="Commuting Expenses">Commuting Expenses</SelectItem>
+                  <SelectItem value="Software & Subscriptions">Software & Subscriptions</SelectItem>
+                  <SelectItem value="Relocation Assistance">Relocation Assistance</SelectItem>
+                  <SelectItem value="Client & Marketing Expenses">Client & Marketing Expenses</SelectItem>
                 </SelectContent>
               </Select>
             </div>

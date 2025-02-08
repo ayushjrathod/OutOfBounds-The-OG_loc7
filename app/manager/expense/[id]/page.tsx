@@ -3,14 +3,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, CheckCircle, ZoomIn, ZoomOut } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MouseEvent, useEffect, useState } from "react";
-import test from "../../../../endpoints/receipt images/dmart.jpg";
 
 export default function ExpenseDetails({ params }: { params: { id: string } }) {
   const [expense, setExpense] = useState<any>(null);
@@ -31,12 +30,16 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
     async function fetchExpense() {
       try {
         const res = await fetch(`/api/db/manager/expenses?id=${params.id}`);
-        console.log(params.id);
         const data = await res.json();
         setExpense(data);
         if (data) {
           setStatus(data.status);
-          setImgSrc("/placeholder.svg");
+          // Update to use Cloudinary URL directly
+          if (data.receiptImage) {
+            setImgSrc(data.receiptImage);
+          } else {
+            setImgSrc("/placeholder.svg");
+          }
         }
       } catch (err) {
         console.error(err);
@@ -170,7 +173,13 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
           <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
             <DialogTrigger asChild>
               <div className="aspect-video relative cursor-pointer">
-                <Image src={imgSrc} alt="Receipt" layout="fill" objectFit="contain" onError={() => setImgSrc(test)} />
+                <Image
+                  src={imgSrc}
+                  alt="Receipt"
+                  layout="fill"
+                  objectFit="contain"
+                  onError={() => setImgSrc("/placeholder.svg")}
+                />
               </div>
             </DialogTrigger>
             <DialogContent className="max-w-4xl h-[80vh]">
@@ -194,7 +203,7 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
                     alt="Receipt"
                     layout="fill"
                     objectFit="contain"
-                    onError={() => setImgSrc(test)}
+                    onError={() => setImgSrc("/placeholder.svg")}
                     draggable={false}
                   />
                 </div>
@@ -216,7 +225,7 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
             </div>
             <div>
               <h3 className="font-semibold">Amount</h3>
-              <p>${expense.amount.toFixed(2)}</p>
+              <p> ₹{expense.amount.toFixed(2)}</p>
             </div>
             <div>
               <h3 className="font-semibold">Date</h3>
@@ -236,7 +245,7 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
             <ul>
               {expense.item_details.map((item: any, index: number) => (
                 <li key={index}>
-                  {item.item}: ${item.amount.toFixed(2)}
+                  {item.item}: ${(typeof item.amount != "string" ? parseFloat(item.amount) : item.amount).toFixed(2)}
                 </li>
               ))}
             </ul>
@@ -247,7 +256,7 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
           </div>
           <div>
             <h3 className="font-semibold">Status</h3>
-            <Badge variant={status === "Approved" ? "success" : status === "Declined" ? "destructive" : "warning"}>
+            <Badge variant={status === "Approved" ? "default" : status === "Declined" ? "destructive" : "secondary"}>
               {status}
             </Badge>
           </div>
