@@ -29,30 +29,40 @@ export function ExpenseList2({ expenses, showEmployeeId = false, linkPrefix }: E
           <TableHead>Date</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Amount</TableHead>
-          <TableHead>Fraud Score</TableHead>
+          <TableHead>Anomaly Score</TableHead>
           <TableHead>Anomaly</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {expenses.map((expense) => (
           <TableRow key={expense.expenseId}>
-            <TableCell>
+            <TableCell className="py-4">
               <Link href={`${linkPrefix}/${expense.expenseId}`} className="text-blue-600 hover:underline">
                 {expense.description}
               </Link>
             </TableCell>
-            {showEmployeeId && <TableCell>{expense.employeeId}</TableCell>}
-            <TableCell>
+            {showEmployeeId && <TableCell className="py-4">{expense.employeeId}</TableCell>}
+            <TableCell className="py-4">
               {new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(
                 new Date(expense.date)
               )}
             </TableCell>
-            <TableCell>
-              <Badge variant={expense.status === "Approved" ? "default" : "destructive"}>{expense.status}</Badge>
+            <TableCell className="py-4">
+              <Badge
+                variant={
+                  expense.status === "Approved" ? "default" : expense.status === "Pending" ? "pending" : "destructive"
+                }
+              >
+                {expense.status}
+              </Badge>
             </TableCell>
-            <TableCell>${expense.amount.toFixed(2)}</TableCell>
-            <TableCell>{(expense.fraudScore * 100).toFixed(1)}%</TableCell>
-            <TableCell>{expense.isAnomaly ? "Yes" : "No"}</TableCell>
+            <TableCell className="py-4">{`₹${expense.amount.toFixed(2)}`}</TableCell>
+            <TableCell className="py-4">{(expense.fraudScore * 100).toFixed(1)}%</TableCell>
+            <TableCell className="py-4">
+              <span className={expense.isAnomaly ? "text-red-600 font-medium" : "text-gray-900"}>
+                {expense.isAnomaly ? "Yes" : "No"}
+              </span>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

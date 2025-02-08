@@ -22,6 +22,8 @@ export async function GET() {
         amount: exp.amount,
         fraudScore: exp.fraudScore,
         isAnomaly: exp.isAnomaly,
+        // Include item_details for calculation if provided
+        item_details: exp.item_details || [],
       }))
     );
     return NextResponse.json(expenses);
