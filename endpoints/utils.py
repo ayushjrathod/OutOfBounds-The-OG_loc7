@@ -26,27 +26,11 @@ class ExpenseCreate(BaseModel):
     departmentId: str
     expenseType: str
     description: str
-    receipt_image: str
+    receipt_image: str  # Now expects Cloudinary URL
     vendor: Optional[str] = None
     bill_number: Optional[str] = None
-    categories: List[str]  # Add categories field
-    content_type: str  # Add content_type to the ExpenseCreate model
-
-def encode_image(image_bytes: bytes) -> str:
-    """Encode image bytes to base64 string with proper padding"""
-    try:
-        # Remove any whitespace and newlines from the base64 string
-        base64_data = base64.b64encode(image_bytes).decode('utf-8').strip()
-        
-        # Add padding if needed
-        missing_padding = len(base64_data) % 4
-        if missing_padding:
-            base64_data += '=' * (4 - missing_padding)
-            
-        return base64_data
-    except Exception as e:
-        print(f"Error in encode_image: {str(e)}")
-        raise ValueError("Failed to encode image")
+    categories: List[str]
+    content_type: str = "image/url"  # Default to URL type
 
 def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     try:
@@ -134,68 +118,46 @@ def analyze_receipt_text(text: str) -> dict:
             "error": str(e)
         }
 
-def analyze_receipt(base64_data: str, content_type: str = "image/jpeg") -> dict:
+def analyze_receipt(receipt_url: str, content_type: str = "image/url") -> dict:
     try:
-        # For PDF files - use Groq
-        if content_type == "application/pdf":
-            pdf_bytes = base64.b64decode(base64_data)
-            text_content = extract_text_from_pdf(pdf_bytes)
-            return analyze_receipt_text(text_content)  # This uses Groq
-            
-        # For images - use Gemini Vision
-        elif content_type in ["image/jpeg", "image/jpg", "image/png"]:
-            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
-                temp_file.write(base64.b64decode(base64_data))
-                temp_path = temp_file.name
+        if (content_type == "image/url"):
+            # Configure Gemini
+            generation_config = {
+                "temperature": 0.7,
+                "top_p": 0.95,
+                "top_k": 40,
+                "max_output_tokens": 8192,
+            }
 
-            try:
-                # Configure Gemini
-                generation_config = {
-                    "temperature": 0.7,
-                    "top_p": 0.95,
-                    "top_k": 40,
-                    "max_output_tokens": 8192,
+            model = genai.GenerativeModel(
+                model_name="gemini-2.0-flash",
+                generation_config=generation_config,
+            )
+
+            # Send URL directly to Gemini
+            chat = model.start_chat()
+            response = chat.send_message([
+                receipt_url,
+                """Analyze this receipt and provide output in this exact JSON format:
+                {
+                    "items": [{"name": "item name", "price": 0.00}],
+                    "total_amount": 0.00,
+                    "date": "YYYY-MM-DD",
+                    "vendor": "store name",
+                    "bill_number": "receipt number/bill number"
                 }
+                Extract every item, exact prices, and bill/receipt number if visible."""
+            ])
 
-                model = genai.GenerativeModel(
-                    model_name="gemini-2.0-flash",
-                    generation_config=generation_config,
-                )
+            # Parse response
+            parsed_data = json.loads(re.search(r'({[\s\S]*})', response.text).group(1))
+            
+            # Clean up prices
+            for item in parsed_data.get('items', []):
+                item['price'] = float(str(item['price']).replace('$', '').replace(',', ''))
+            parsed_data['total_amount'] = float(str(parsed_data.get('total_amount', 0)).replace('$', '').replace(',', ''))
 
-                # Upload image to Gemini
-                image = genai.upload_file(temp_path, mime_type=content_type)
-
-                # Start chat session with Gemini
-                chat = model.start_chat()
-                response = chat.send_message([
-                    image,
-                    """Analyze this receipt and provide output in this exact JSON format:
-                    {
-                        "items": [{"name": "item name", "price": 0.00}],
-                        "total_amount": 0.00,
-                        "date": "YYYY-MM-DD",
-                        "vendor": "store name",
-                        "bill_number": "receipt number/bill number"
-                    }
-                    Extract every item, exact prices, and bill/receipt number if visible."""
-                ])
-
-                # Parse Gemini response
-                parsed_data = json.loads(re.search(r'({[\s\S]*})', response.text).group(1))
-                
-                # Clean up prices
-                for item in parsed_data.get('items', []):
-                    item['price'] = float(str(item['price']).replace('$', '').replace(',', ''))
-                parsed_data['total_amount'] = float(str(parsed_data.get('total_amount', 0)).replace('$', '').replace(',', ''))
-
-                return parsed_data
-
-            finally:
-                # Clean up temp file
-                os.unlink(temp_path)
-        
-        else:
-            raise ValueError(f"Unsupported content type: {content_type}")
+            return parsed_data
 
     except Exception as e:
         print(f"Error in receipt analysis: {str(e)}")
@@ -281,31 +243,8 @@ def evaluate_appeal(appeal: str) -> dict:
 
 def process_expense(expense: ExpenseCreate, db) -> dict:
     try:
-        content_type = expense.content_type
-        
-        # Clean up base64 data before processing
-        try:
-            # Remove any whitespace and newlines
-            clean_base64 = expense.receipt_image.strip()
-            # Ensure proper padding
-            missing_padding = len(clean_base64) % 4
-            if missing_padding:
-                clean_base64 += '=' * (4 - missing_padding)
-            
-            # Test decode to validate base64
-            base64.b64decode(clean_base64)
-            expense.receipt_image = clean_base64
-        except Exception as e:
-            raise ValueError(f"Invalid receipt image data: {str(e)}")
-
-        # Process receipt based on content type
-        if content_type == "application/pdf":
-            pdf_bytes = base64.b64decode(expense.receipt_image)
-            text_content = extract_text_from_pdf(pdf_bytes)
-            receipt_data = analyze_receipt_text(text_content)
-        else:
-            # For images (jpeg, jpg, png)
-            receipt_data = analyze_receipt(expense.receipt_image, content_type)
+        # Use the Cloudinary URL directly for analysis
+        receipt_data = analyze_receipt(expense.receipt_image)
 
         # Check if bill number already exists
         bill_number = receipt_data.get('bill_number')
