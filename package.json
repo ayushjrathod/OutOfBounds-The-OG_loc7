@@ -49,6 +49,7 @@
     "react-modal": "^3.16.3",
     "react-smoke": "^1.1.0",
     "react-toast": "^1.0.3",
+    "recharts": "^2.15.1",
     "resend": "^4.1.1",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",

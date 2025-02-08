@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Typography } from '@mui/material';
-import axios from 'axios';
+"use client";
+import axios from "axios";
+import { useEffect, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const CategoryDistribution = () => {
   const [data, setData] = useState([]);
@@ -9,10 +9,10 @@ const CategoryDistribution = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/analytics/category-distribution');
+        const response = await axios.get("http://localhost:8080/api/analytics/category-distribution");
         setData(response.data);
       } catch (error) {
-        console.error('Error fetching category distribution:', error);
+        console.error("Error fetching category distribution:", error);
       }
     };
 
@@ -20,8 +20,8 @@ const CategoryDistribution = () => {
   }, []);
 
   return (
-    <>
-      <Typography variant="h6" gutterBottom>Category Distribution</Typography>
+    <div className="w-full h-full">
+      <h3 className="text-lg font-semibold mb-4">Category Distribution</h3>
       <ResponsiveContainer width="100%" height="90%">
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -33,7 +33,7 @@ const CategoryDistribution = () => {
           <Bar dataKey="count" fill="#8884d8" name="Number of Expenses" />
         </BarChart>
       </ResponsiveContainer>
-    </>
+    </div>
   );
 };
 

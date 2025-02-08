@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Visualizations from './pages/Visualizations';
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import Visualizations from "../../../app/vis/page";
 
 function App() {
   return (
