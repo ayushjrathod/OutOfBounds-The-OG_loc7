@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { Typography } from '@mui/material';
-import axios from 'axios';
+"use client";
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+import axios from "axios";
+import { useEffect, useState } from "react";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
 const DepartmentExpenses = () => {
   const [data, setData] = useState([]);
@@ -11,15 +12,15 @@ const DepartmentExpenses = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/analytics/department-expenses');
+        const response = await axios.get("http://localhost:8080/api/analytics/department-expenses");
         // Format data for pie chart
-        const formattedData = response.data.map(item => ({
+        const formattedData = response.data.map((item) => ({
           name: item._id,
-          value: item.total_amount
+          value: item.total_amount,
         }));
         setData(formattedData);
       } catch (error) {
-        console.error('Error fetching department expenses:', error);
+        console.error("Error fetching department expenses:", error);
       }
     };
 
@@ -27,8 +28,8 @@ const DepartmentExpenses = () => {
   }, []);
 
   return (
-    <>
-      <Typography variant="h6" gutterBottom>Department Expenses Distribution</Typography>
+    <div className="w-full h-full">
+      <h3 className="text-lg font-semibold mb-4">Department Expenses Distribution</h3>
       <ResponsiveContainer width="100%" height="90%">
         <PieChart>
           <Pie
@@ -49,7 +50,7 @@ const DepartmentExpenses = () => {
           <Legend />
         </PieChart>
       </ResponsiveContainer>
-    </>
+    </div>
   );
 };
 
