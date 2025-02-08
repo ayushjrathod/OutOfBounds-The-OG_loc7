@@ -1,26 +1,23 @@
-import { ExpenseList } from "@/components/ExpenseList"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+"use client";
+import { ExpenseList } from "@/components/ExpenseList2";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// This would typically come from your API or database
-const mockExpenses = [
-  {
-    expenseId: "1",
-    date: new Date("2023-05-01"),
-    employeeId: "EMP001",
-    status: "Pending",
-    amount: 150.0,
-  },
-  {
-    expenseId: "2",
-    date: new Date("2023-05-02"),
-    employeeId: "EMP002",
-    status: "Approved",
-    amount: 200.0,
-  },
-  // Add more mock data as needed
-]
+import { useEffect, useState } from "react";
+export default async function ManagerDashboard() {
+  const [data, setData] = useState([]);
 
-export default function ManagerDashboard() {
+  useEffect(() => {
+    const fetchData = async () => {
+      const res = await fetch("http://localhost:3000/api/db/manager", {
+        method: "GET",
+      });
+      const result = await res.json();
+      setData(result);
+    };
+
+    fetchData();
+  }, []);
+
   return (
     <div className="container mx-auto p-4">
       <Card>
@@ -28,10 +25,9 @@ export default function ManagerDashboard() {
           <CardTitle>Manager Dashboard</CardTitle>
         </CardHeader>
         <CardContent>
-          <ExpenseList expenses={mockExpenses} showEmployeeId={true} linkPrefix="/manager/expense" />
+          <ExpenseList expenses={data} showEmployeeId={true} linkPrefix="/manager/expense" />
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-

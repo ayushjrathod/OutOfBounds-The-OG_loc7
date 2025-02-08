@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import Link from "next/link";
 
 interface Expense {
   expenseId: string;
@@ -17,6 +17,7 @@ interface ExpenseListProps {
 }
 
 export function ExpenseList({ expenses, showEmployeeId = false, linkPrefix }: ExpenseListProps) {
+  console.log(expenses);
   return (
     <Table>
       <TableHeader>
