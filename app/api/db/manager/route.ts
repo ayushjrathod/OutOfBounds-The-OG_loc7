@@ -10,7 +10,7 @@ export async function GET() {
   try {
     await client.connect();
     const db = client.db("expensesDB"); // specify name if needed
-    const collections = await db.collection("ManagersDepartments").find().toArray(); // Convert cursor to array
+    const collections = await db.collection("EmployeeExpenses").find().toArray(); // Convert cursor to array
     // Flatten the response: map each document's expenses array and convert date to Date object.
     const expenses = collections.flatMap((doc: any) =>
       doc.expenses.map((exp: any) => ({
@@ -22,8 +22,6 @@ export async function GET() {
         // ...include other fields as necessary...
       }))
     );
-    // Sort expenses by date in descending order
-    expenses.sort((a, b) => b.date.getTime() - a.date.getTime());
     return NextResponse.json(expenses);
   } finally {
     await client.close();

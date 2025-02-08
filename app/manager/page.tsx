@@ -1,9 +1,11 @@
 "use client";
-import { ExpenseList } from "@/components/ExpenseList2";
+import { ExpenseList2 } from "@/components/ExpenseList2";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { useEffect, useState } from "react";
-export default async function ManagerDashboard() {
+
+export default function UserDashboard() {
+  // Changed: initialize "data" as an empty array instead of null
   const [data, setData] = useState([]);
 
   useEffect(() => {
@@ -17,7 +19,6 @@ export default async function ManagerDashboard() {
 
     fetchData();
   }, []);
-
   return (
     <div className="container mx-auto p-4">
       <Card>
@@ -25,7 +26,7 @@ export default async function ManagerDashboard() {
           <CardTitle>Manager Dashboard</CardTitle>
         </CardHeader>
         <CardContent>
-          <ExpenseList expenses={data} showEmployeeId={true} linkPrefix="/manager/expense" />
+          <ExpenseList2 expenses={data} showEmployeeId={true} linkPrefix="/manager/expense" />
         </CardContent>
       </Card>
     </div>

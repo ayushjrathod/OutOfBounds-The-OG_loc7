@@ -6,7 +6,7 @@ export default function TestPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const res = await fetch("http://localhost:3000/api/db/manager", {
+      const res = await fetch("http://localhost:3000/api/db/manager/expenses", {
         method: "GET",
       });
       const result = await res.json();

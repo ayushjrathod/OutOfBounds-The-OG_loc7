@@ -16,15 +16,14 @@ interface ExpenseListProps {
   linkPrefix: string;
 }
 
-export function ExpenseList({ expenses, showEmployeeId = false, linkPrefix }: ExpenseListProps) {
-  console.log(expenses);
+export function ExpenseList2({ expenses, showEmployeeId = false, linkPrefix }: ExpenseListProps) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Expense ID</TableHead>
-          <TableHead>Date</TableHead>
           {showEmployeeId && <TableHead>Employee ID</TableHead>}
+          <TableHead>Date</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Amount</TableHead>
         </TableRow>
@@ -37,8 +36,12 @@ export function ExpenseList({ expenses, showEmployeeId = false, linkPrefix }: Ex
                 {expense.expenseId}
               </Link>
             </TableCell>
-            <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
             {showEmployeeId && <TableCell>{expense.employeeId}</TableCell>}
+            <TableCell>
+              {new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(
+                new Date(expense.date)
+              )}
+            </TableCell>
             <TableCell>
               <Badge variant={expense.status === "Approved" ? "default" : "destructive"}>{expense.status}</Badge>
             </TableCell>

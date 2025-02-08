@@ -22,7 +22,7 @@ app.add_middleware(
 
 # MongoDB Atlas connection with error handling
 try:
-    uri = os.getenv('MONGO_URL_prathamesh')
+    uri = os.getenv('MONGODB_URL_neha')
     client = MongoClient(uri, server_api=ServerApi('1'))
     # Test the connection
     client.admin.command('ping')
