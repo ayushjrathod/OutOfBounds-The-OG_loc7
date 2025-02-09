@@ -1,9 +1,6 @@
-import base64
 from datetime import datetime
 import uuid
 import google.generativeai as genai
-from typing import List, Optional
-from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 import tempfile
@@ -12,25 +9,14 @@ import PyPDF2
 from groq import Groq
 import re
 import requests
+from models import ExpenseCreate, ItemDetail  # Import ItemDetail from models.py
+from db import db
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
 
 # Load environment variables
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-class ItemDetail(BaseModel):
-    item: str
-    amount: float
-
-class ExpenseCreate(BaseModel):
-    employeeId: str
-    departmentId: str
-    expenseType: str
-    description: str
-    receipt_image: str  # Now expects Cloudinary URL
-    vendor: Optional[str] = None
-    bill_number: Optional[str] = None
-    categories: List[str]
-    content_type: str = "image/url"  # Default to URL type
 
 def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     try:
@@ -243,6 +229,11 @@ def evaluate_appeal(appeal: str) -> dict:
 
 def process_expense(expense: ExpenseCreate, db) -> dict:
     try:
+        uri = os.getenv('MONGO_URL_prathamesh')
+        client = MongoClient(uri, server_api=ServerApi('1'))
+        # Test the connection
+        client.admin.command('ping')
+        db = client.expensesDB
         # Use the Cloudinary URL directly for analysis
         receipt_data = analyze_receipt(expense.receipt_image)
 
@@ -267,7 +258,8 @@ def process_expense(expense: ExpenseCreate, db) -> dict:
             "vendor": receipt_data.get("vendor", expense.vendor or "Unknown"),
             "description": expense.description,
             "categories": expense.categories,
-            "items": receipt_data.get("items", [])
+            "items": receipt_data.get("items", []),
+            "receipt_url": expense.receipt_image  # Include Cloudinary URL in appeal data
         }
 
         # Get fraud evaluation
@@ -285,20 +277,21 @@ def process_expense(expense: ExpenseCreate, db) -> dict:
                 "vendor": receipt_data.get("vendor", expense.vendor or "Unknown"),
                 "description": expense.description,
                 "categories": expense.categories,
-                "receiptImage": expense.receipt_image,
+                "receiptImage": expense.receipt_image,  # Store Cloudinary URL
                 "bill_number": receipt_data.get("bill_number"),
                 "item_details": receipt_data.get("items", []),
                 "aiSummary": evaluation["reason"],
                 "status": "Pending",
                 "submittedDate": datetime.now().strftime("%Y-%m-%d"),
                 "fraudScore": evaluation["score"],
-                "isAnomaly": evaluation["score"] > 0.7,  # Set threshold for anomaly
+                "isAnomaly": evaluation["score"] > 0.7,
                 "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }]
         }
-        print(expense_doc)
+        print("Storing expense with receipt URL:", expense.receipt_image)
         
-        return db.EmployeeExpenses.insert_one(expense_doc)
+        result = db.EmployeeExpenses.insert_one(expense_doc)
+        return result
     except Exception as e:
         raise ValueError(f"Failed to process receipt: {str(e)}")
