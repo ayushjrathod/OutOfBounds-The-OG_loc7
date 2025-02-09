@@ -12,40 +12,55 @@ def get_database():
             raise ValueError("MongoDB URI not found in environment variables")
             
         client = MongoClient(uri, server_api=ServerApi('1'))
-        # Test connection
         client.admin.command('ping')
         print("MongoDB connection successful!")
         db = client.expensesDB
         
-        # Initialize required collections if they don't exist
+        # Initialize required collections and data
         if "DepartmentsEmployees" not in db.list_collection_names():
-            db.create_collection("DepartmentsEmployees")
+            print("Creating DepartmentsEmployees collection...")
+            # Drop existing collection if any
+            db.DepartmentsEmployees.drop()
+            
             # Insert initial data
-            db.DepartmentsEmployees.insert_many([
+            result = db.DepartmentsEmployees.insert_many([
                 {
                     "departmentId": "DEP001",
-                    "employees": [{"id": "EMP001"}]
+                    "departmentName": "Sales",
+                    "employees": [{"id": "EMP001", "name": "Employee 1"}]
                 },
                 {
                     "departmentId": "DEP002",
-                    "employees": [{"id": "EMP002"}]
+                    "departmentName": "Finance",
+                    "employees": [{"id": "EMP002", "name": "Employee 2"}]
                 },
                 {
                     "departmentId": "DEP003",
-                    "employees": [{"id": "EMP003"}]
+                    "departmentName": "Human Resources",
+                    "employees": [{"id": "EMP003", "name": "Employee 3"}]
                 },
                 {
                     "departmentId": "DEP004",
-                    "employees": [{"id": "EMP004"}]
+                    "departmentName": "Research",
+                    "employees": [{"id": "EMP004", "name": "Employee 4"}]
                 },
                 {
                     "departmentId": "DEP005",
-                    "employees": [{"id": "EMP005"}]
+                    "departmentName": "Information Technology",
+                    "employees": [{"id": "EMP005", "name": "Employee 5"}]
                 }
             ])
+            print(f"Inserted {len(result.inserted_ids)} department records")
+            
+            # Create indexes
+            db.DepartmentsEmployees.create_index("departmentId", unique=True)
+            db.DepartmentsEmployees.create_index([("employees.id", 1)])
         
         if "EmployeeExpenses" not in db.list_collection_names():
+            print("Creating EmployeeExpenses collection...")
             db.create_collection("EmployeeExpenses")
+            db.EmployeeExpenses.create_index([("employeeId", 1)])
+            db.EmployeeExpenses.create_index([("expenses.expenseId", 1)])
             
         return db
         
