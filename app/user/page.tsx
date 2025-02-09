@@ -1,6 +1,6 @@
 "use client";
 import { ExpenseList } from "@/components/ExpenseList";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 import { useEffect, useState } from "react";
 
@@ -21,10 +21,8 @@ export default function UserDashboard() {
   }, []);
   return (
     <div className="container mx-auto p-4">
+      <h1 className="text-4xl m-4 font-bold">User Dashboard</h1>
       <Card>
-        <CardHeader>
-          <CardTitle>User Dashboard</CardTitle>
-        </CardHeader>
         <CardContent>
           <ExpenseList expenses={data} showEmployeeId={false} linkPrefix="/user/expense" />
         </CardContent>

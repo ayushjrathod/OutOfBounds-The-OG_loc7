@@ -1,7 +1,9 @@
 "use client";
 import { ExpenseList2 } from "@/components/ExpenseList2";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   IconArrowLeft,
@@ -15,31 +17,28 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-// Import Tabs components from shadcn UI
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function UserDashboard() {
   const [open, setOpen] = useState(false);
   const links = [
     {
-      label: "Dashboard",
+      label: "Manager Dashboard",
       href: "/manager",
       icon: <IconBrandTabler className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
     },
     {
-      label: "Profile",
-      href: "#",
+      label: "User Dashboard",
+      href: "/user",
       icon: <IconUserBolt className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
     },
     {
-      label: "Settings",
-      href: "#",
+      label: "Chatbot",
+      href: "/chat",
       icon: <IconSettings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
     },
     {
-      label: "Logout",
-      href: "#",
+      label: "Home",
+      href: "/",
       icon: <IconArrowLeft className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
     },
   ];
@@ -48,11 +47,11 @@ export default function UserDashboard() {
     <div
       className={cn(
         "rounded-md flex flex-col md:flex-row bg-gray-100 dark:bg-neutral-800 w-full flex-1 max-w-7xl mx-auto border border-neutral-200 dark:border-neutral-700 overflow-hidden",
-        "min-h-screen" // Changed from h-screen to min-h-screen
+        "min-h-screen"
       )}
     >
       <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10">
+        <SidebarBody className="justify-around h-screen gap-10">
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
             {open ? <Logo /> : <LogoIcon />}
             <div className="mt-8 flex flex-col gap-2">
@@ -68,7 +67,7 @@ export default function UserDashboard() {
                 href: "#",
                 icon: (
                   <Image
-                    src="https://assets.aceternity.com/manu.png"
+                    src="https://img.freepik.com/premium-vector/businessman-avatar-illustration-cartoon-user-portrait-user-profile-icon_118339-4386.jpg"
                     className="h-7 w-7 flex-shrink-0 rounded-full"
                     width={50}
                     height={50}
@@ -97,8 +96,7 @@ const Dashboard = () => {
         method: "GET",
       });
       const result = await res.json();
-      const sortedData = result.sort((a: any, b: any) => b.fraudScore - a.fraudScore);
-      setData(sortedData);
+      setData(result); // Removed the sorting
     };
 
     fetchData();
@@ -124,34 +122,31 @@ const Dashboard = () => {
   return (
     <div className="flex flex-1 overflow-auto">
       {" "}
-      {/* Added overflow-auto */}
       <div className="p-4 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex flex-col gap-4 flex-1 w-full overflow-y-auto">
-        {/* Added overflow-y-auto */}
-        <h1 className="text-4xl font-semibold">Manager Dashboard</h1>
-        {/* New stats cards */}
+        <h1 className="text-4xl font-bold">Manager Dashboard</h1>
         <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
-          <Card>
-            <CardContent>
-              <h2 className="text-lg font-medium my-4 mx-2">Total Approved Expenditures</h2>
-              <p className="text-2xl font-bold my-2 mx-2">{"₹" + totalApprovedExpenditures.toFixed(2)}</p>
+          <Card className="hover:shadow-md transition-shadow duration-300">
+            <CardContent className="mt-4">
+              <h2 className="text-lg font-medium">Total Approved Expenditures:</h2>
+              <p className="text-2xl font-bold ">{"₹" + totalApprovedExpenditures.toFixed(2)}</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent>
-              <h2 className="text-lg font-medium my-4 mx-2">Approved Requests</h2>
-              <p className="text-2xl font-bold m-2">{approvedRequests}</p>
+          <Card className="hover:shadow-md transition-shadow duration-300">
+            <CardContent className="mt-4">
+              <h2 className="text-lg font-medium">Total Approved Requests:</h2>
+              <p className="text-2xl font-bold">{approvedRequests}</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent>
-              <h2 className="text-lg font-medium my-4 mx-2">Pending Requests</h2>
-              <p className="text-2xl font-bold m-2">{pendingRequests}</p>
+          <Card className="hover:shadow-md transition-shadow duration-300">
+            <CardContent className="mt-4">
+              <h2 className="text-lg font-medium">Total Pending Requests:</h2>
+              <p className="text-2xl font-bold">{pendingRequests}</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent>
-              <h2 className="text-lg font-medium my-4 mx-2">Declined Requests</h2>
-              <p className="text-2xl font-bold m-2">{declinedRequests}</p>
+          <Card className="hover:shadow-md transition-shadow duration-300">
+            <CardContent className="mt-4">
+              <h2 className="text-lg font-medium">Total Declined Requests:</h2>
+              <p className="text-2xl font-bold">{declinedRequests}</p>
             </CardContent>
           </Card>
         </div>

@@ -38,7 +38,7 @@ export function ExpenseList2({ expenses, showEmployeeId = false, linkPrefix }: E
           <TableRow key={expense.expenseId}>
             <TableCell className="py-4">
               <Link href={`${linkPrefix}/${expense.expenseId}`} className="text-blue-600 hover:underline">
-                {expense.description}
+                <span className="font-semibold">{expense.description}</span>
               </Link>
             </TableCell>
             {showEmployeeId && <TableCell className="py-4">{expense.employeeId}</TableCell>}

@@ -26,7 +26,7 @@ export function ExpenseList({ expenses, showEmployeeId = false, linkPrefix }: Ex
         <TableRow>
           <TableHead>Description</TableHead>
           <TableHead>Submitted Date</TableHead>
-          <TableHead>Approval Date</TableHead>
+          <TableHead>Update Date</TableHead>
           {showEmployeeId && <TableHead>Employee ID</TableHead>}
           <TableHead>Status</TableHead>
           <TableHead>Amount</TableHead>
@@ -52,7 +52,13 @@ export function ExpenseList({ expenses, showEmployeeId = false, linkPrefix }: Ex
                   </Tooltip>
                 </TooltipProvider>
               ) : (
-                <Badge variant={expense.status === "Approved" ? "default" : "destructive"}>{expense.status}</Badge>
+                <Badge
+                  variant={
+                    expense.status === "Approved" ? "default" : expense.status === "Pending" ? "pending" : "destructive"
+                  }
+                >
+                  {expense.status}
+                </Badge>
               )}
             </TableCell>
             <TableCell>${expense.amount.toFixed(2)}</TableCell>
