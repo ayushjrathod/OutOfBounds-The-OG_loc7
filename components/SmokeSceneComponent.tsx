@@ -5,7 +5,7 @@ import { SmokeScene } from "react-smoke";
 import * as THREE from "three";
 
 export default function SmokeSceneComponent() {
-  const smokeColor = useMemo(() => new THREE.Color("white"), []);
+  const smokeColor = useMemo(() => new THREE.Color("lightblue"), []);
 
   return (
     <div
@@ -17,8 +17,8 @@ export default function SmokeSceneComponent() {
       <SmokeScene
         smoke={{
           color: smokeColor,
-          opacity: 0.4,
-          density: 20,
+          opacity: 0.1,
+          density: 15,
           enableRotation: true,
           enableWind: true,
           enableTurbulence: true,
