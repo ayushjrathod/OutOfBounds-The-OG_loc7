@@ -52,7 +52,7 @@ export default function UserDashboard() {
   return (
     <div
       className={cn(
-        "rounded-md flex flex-col md:flex-row bg-gray-100 dark:bg-neutral-800 w-full flex-1 max-w-7xl mx-auto border border-neutral-200 dark:border-neutral-700 overflow-hidden",
+        "rounded-md flex flex-col md:flex-row bg-gradient-to-br from-amber-50 to-amber-100 w-full flex-1 max-w-7xl mx-auto border border-amber-200 dark:border-amber-700 overflow-hidden",
         "min-h-screen"
       )}
     >
@@ -142,7 +142,7 @@ const Dashboard = () => {
   return (
     <div className="flex flex-1 overflow-auto">
       {" "}
-      <div className="p-4 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex flex-col gap-4 flex-1 w-full overflow-y-auto">
+      <div className="p-4 rounded-tl-2xl border border-amber-200 dark:border-amber-700 bg-white dark:bg-amber-900 flex flex-col gap-4 flex-1 w-full overflow-y-auto">
         <h1 className="text-4xl font-bold">
           <PixelatedText text="Manager Dashboard" interval={100} />
         </h1>
@@ -186,27 +186,27 @@ const Dashboard = () => {
         </div>
         {/* Updated Tabs with improved styling */}
         <Tabs className="" value={tab} onValueChange={setTab} defaultValue="all">
-          <TabsList className="w-full flex justify-between border-b border-gray-200 dark:border-neutral-700">
+          <TabsList className="w-full flex justify-between border-b border-amber-200 dark:border-amber-700">
             <TabsTrigger
-              className="m-2 px-4 py-2 rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-neutral-700 data-[state=active]:bg-[#F866AB] data-[state=active]:text-white"
+              className="m-2 px-4 py-2 rounded-full transition-colors hover:bg-amber-100 dark:hover:bg-amber-700 data-[state=active]:bg-amber-600 data-[state=active]:text-white"
               value="all"
             >
               All
             </TabsTrigger>
             <TabsTrigger
-              className="m-2 px-4 py-2 rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-neutral-700 data-[state=active]:bg-[#F866AB] data-[state=active]:text-white"
+              className="m-2 px-4 py-2 rounded-full transition-colors hover:bg-amber-100 dark:hover:bg-amber-700 data-[state=active]:bg-amber-600 data-[state=active]:text-white"
               value="approved"
             >
               Approved
             </TabsTrigger>
             <TabsTrigger
-              className="m-2 px-4 py-2 rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-neutral-700 data-[state=active]:bg-[#F866AB] data-[state=active]:text-white"
+              className="m-2 px-4 py-2 rounded-full transition-colors hover:bg-amber-100 dark:hover:bg-amber-700 data-[state=active]:bg-amber-600 data-[state=active]:text-white"
               value="pending"
             >
               Pending
             </TabsTrigger>
             <TabsTrigger
-              className="m-2 px-4 py-2 rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-neutral-700 data-[state=active]:bg-[#F866AB] data-[state=active]:text-white"
+              className="m-2 px-4 py-2 rounded-full transition-colors hover:bg-amber-100 dark:hover:bg-amber-700 data-[state=active]:bg-amber-600 data-[state=active]:text-white"
               value="declined"
             >
               Declined
@@ -228,6 +228,7 @@ const Dashboard = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="hover:bg-amber-100"
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                 >
@@ -237,6 +238,7 @@ const Dashboard = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="hover:bg-amber-100"
                   onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
                 >

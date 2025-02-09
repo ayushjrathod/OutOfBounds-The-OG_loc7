@@ -104,7 +104,7 @@ def analyze_receipt_text(text: str) -> dict:
             "error": str(e)
         }
 
-def analyze_receipt(receipt_url: str, content_type: str = "image/url") -> dict:
+def analyze_receipt(receipt_data: str, content_type: str = "image/url") -> dict:
     try:
         if (content_type == "image/url"):
             # Configure Gemini
@@ -123,7 +123,7 @@ def analyze_receipt(receipt_url: str, content_type: str = "image/url") -> dict:
             # Send URL directly to Gemini
             chat = model.start_chat()
             response = chat.send_message([
-                receipt_url,
+                receipt_data,
                 """Analyze this receipt and provide output in this exact JSON format:
                 {
                     "items": [{"name": "item name", "price": 0.00}],
