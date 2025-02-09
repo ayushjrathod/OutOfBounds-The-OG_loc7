@@ -15,3 +15,13 @@ class ExpenseCreate(BaseModel):
     bill_number: Optional[str] = None
     categories: List[str]
     content_type: str = "image/url"  # Default to URL type
+
+class EmailRequest(BaseModel):
+    receiver_email: str
+    expense_id: str
+    status: Optional[str] = None
+    reason: Optional[str] = None
+
+class ApprovalRequest(BaseModel):
+    expense_id: str
+    reason: Optional[str] = None
