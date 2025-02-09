@@ -1,19 +1,14 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException,Request
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
-from utils import ExpenseCreate, process_expense
-import mimetypes
+from db import db
+from models import ExpenseCreate
+from utils import process_expense
 import os
 from dotenv import load_dotenv
 from google import genai
 from datetime import datetime
-from typing import List, Dict, Any
-from notification_utils import send_email, create_expense_email, create_admin_approval_email
-from pydantic import BaseModel
-from bson import ObjectId
-from typing import Optional
+from pymongo import MongoClient  # Add this import
+from pymongo.server_api import ServerApi  # Add this import
 
 load_dotenv()
 
@@ -28,17 +23,16 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# MongoDB Atlas connection with error handling
-try:
-    uri = os.getenv('MONGO_URL_prathamesh')
-    client = MongoClient(uri, server_api=ServerApi('1'))
-    # Test the connection
-    client.admin.command('ping')
-    db = client.expensesDB
-    print("Pinged your deployment. You successfully connected to MongoDB!")
-except Exception as e:
-    print(f"MongoDB connection failed: {str(e)}")
-    raise HTTPException(status_code=500, detail="Database connection failed")
+# Verify database connection at startup
+@app.on_event("startup")
+async def startup_event():
+    try:
+        # Test the connection with proper MongoDB command
+        db.command("ping")
+        print("Database connection verified during startup")
+    except Exception as e:
+        print(f"Database connection error during startup: {str(e)}")
+        raise Exception("Database connection failed during startup check") from e
 
 VALID_EXPENSE_CATEGORIES = [
     "Travel Expenses",
@@ -53,10 +47,6 @@ VALID_EXPENSE_CATEGORIES = [
     "Client & Marketing Expenses"
 ]
 
-# Remove constants for valid IDs
-# VALID_EMPLOYEE_IDS = [f"EMP{i}" for i in range(1, 6)]
-# VALID_DEPARTMENT_IDS = [f"DEP00{i}" for i in range(1, 6)]
-
 @app.post("/api/expenses/")
 async def create_expense(
     employeeId: str = Form(...),
@@ -65,8 +55,14 @@ async def create_expense(
     description: str = Form(...),
     vendor: str = Form(None),
     categories: str = Form(...),
-    receiptImage: str = Form(...),  # Changed to accept Cloudinary URL
+    receiptImage: str = Form(...)  # Changed to accept Cloudinary URL
 ):
+    try:
+        # Test connection before processing
+        db.command("ping")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+        
     # First validate employee and department existence
     try:
         # Check if employee exists in the correct department
@@ -142,42 +138,10 @@ async def create_expense(
         
         # Process and store the expense
         result = process_expense(expense, db)
-        expense_id = str(result.inserted_id)
-
-        # Get the stored expense document
-        stored_expense = db.EmployeeExpenses.find_one({"_id": result.inserted_id})
-        expense_details = stored_expense["expenses"][0]
-
-        # Send confirmation email to employee
-        employee_email = "samyaknahar81@gmail.com"  # Replace with actual employee email
-        html_content = create_expense_email("pending", expense_id)
-        send_email(
-            employee_email,
-            "Expense Request Received",
-            html_content
-        )
-
-        # Send approval request to admin
-        admin_email = "samyaknahar004@gmail.com"
-        admin_html_content = create_admin_approval_email(
-            expense_id=expense_id,
-            employee_id=expense.employeeId,
-            amount=expense_details["amount"],
-            ai_summary=expense_details["aiSummary"],
-            fraud_score=expense_details["fraudScore"]
-        )
-        
-        admin_email_success, admin_email_message = send_email(
-            admin_email,
-            f"Expense Approval Required - {expense.employeeId}",
-            admin_html_content
-        )
-
         return {
             "status": "success", 
-            "expense_id": expense_id,
-            "message": "Expense processed successfully",
-            "admin_notification_sent": admin_email_success
+            "expense_id": str(result.inserted_id),
+            "message": "Expense processed successfully"
         }
         
     except ValueError as e:
@@ -188,48 +152,6 @@ async def create_expense(
             status_code=500, 
             detail="An error occurred while processing the expense"
         )
-
-# Add new endpoint for updating expense status with email notification
-@app.post("/api/expenses/{expense_id}/status")
-async def update_expense_status(
-    expense_id: str,
-    status: str = Form(...),
-    reason: str = Form(None)
-):
-    try:
-        # Find the expense
-        expense = db.EmployeeExpenses.find_one({"_id": expense_id})
-        if not expense:
-            raise HTTPException(status_code=404, detail="Expense not found")
-
-        # Get employee email from your employee collection
-        employee = db.Employees.find_one({"employeeId": expense["employeeId"]})
-        if not employee or "email" not in employee:
-            raise HTTPException(status_code=400, detail="Employee email not found")
-
-        # Update status
-        db.EmployeeExpenses.update_one(
-            {"_id": expense_id},
-            {"$set": {"status": status, "statusReason": reason}}
-        )
-
-        # Send status update email
-        html_content = create_expense_email(status, expense_id, reason)
-        email_success, email_message = send_email(
-            employee["email"],
-            f"Expense Request {status.capitalize()}",
-            html_content
-        )
-
-        return {
-            "status": "success",
-            "message": f"Expense status updated to {status}",
-            "email_sent": email_success,
-            "email_status": email_message
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 # Remove the /api/files endpoint since we're using Cloudinary
 
@@ -451,126 +373,10 @@ except Exception as e:
     print(f"MongoDB connection failed: {str(e)}")
     raise HTTPException(status_code=500, detail="Database connection failed")
 
-# Add new models
-class ExpenseStatusUpdate(BaseModel):
-    status: str
-    reason: Optional[str] = None
-
-# Add new endpoints
-@app.post("/api/expenses/{expense_id}/accept")
-async def accept_expense(expense_id: str, reason: str = None):
-    try:
-        # Convert string ID to ObjectId
-        expense = db.EmployeeExpenses.find_one({"_id": ObjectId(expense_id)})
-        if not expense:
-            raise HTTPException(status_code=404, detail="Expense not found")
-
-        # Update expense status
-        db.EmployeeExpenses.update_one(
-            {"_id": ObjectId(expense_id)},
-            {"$set": {
-                "expenses.0.status": "approved",
-                "expenses.0.statusReason": reason,
-                "expenses.0.updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }}
-        )
-
-        # Get updated expense details
-        updated_expense = db.EmployeeExpenses.find_one({"_id": ObjectId(expense_id)})
-        expense_details = updated_expense["expenses"][0]
-
-        # Send email to employee
-        employee_html = create_expense_email(
-            status="approved",
-            expense_id=expense_id,
-            reason=reason
-        )
-        send_email(
-            "samyaknahar81@gmail.com",  # Employee email
-            "Expense Request Approved",
-            employee_html
-        )
-
-        # Send confirmation to admin
-        admin_html = f"""
-        <html>
-        <body>
-            <h2>Expense Approval Confirmation</h2>
-            <p>You have approved expense {expense_id}</p>
-            <p><strong>Amount:</strong> ₹{expense_details['amount']}</p>
-            <p><strong>Employee:</strong> {updated_expense['employeeId']}</p>
-            <p><strong>AI Analysis:</strong> {expense_details['aiSummary']}</p>
-            <p><strong>Fraud Score:</strong> {expense_details['fraudScore']}</p>
-            {f"<p><strong>Reason:</strong> {reason}</p>" if reason else ""}
-        </body>
-        </html>
-        """
-        send_email(
-            "samyaknahar004@gmail.com",  # Admin email
-            f"Expense {expense_id} Approved",
-            admin_html
-        )
-
-        return {"status": "success", "message": "Expense approved successfully"}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/expenses/{expense_id}/reject")
-async def reject_expense(expense_id: str, reason: str = Form(...)):
-    try:
-        # Convert string ID to ObjectId
-        expense = db.EmployeeExpenses.find_one({"_id": ObjectId(expense_id)})
-        if not expense:
-            raise HTTPException(status_code=404, detail="Expense not found")
-
-        # Update expense status
-        db.EmployeeExpenses.update_one(
-            {"_id": ObjectId(expense_id)},
-            {"$set": {
-                "expenses.0.status": "rejected",
-                "expenses.0.statusReason": reason,
-                "expenses.0.updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }}
-        )
-
-        # Get updated expense details
-        updated_expense = db.EmployeeExpenses.find_one({"_id": ObjectId(expense_id)})
-        expense_details = updated_expense["expenses"][0]
-
-        # Send email to employee
-        employee_html = create_expense_email(
-            status="rejected",
-            expense_id=expense_id,
-            reason=reason
-        )
-        send_email(
-            "samyaknahar81@gmail.com",  # Employee email
-            "Expense Request Rejected",
-            employee_html
-        )
-
-        # Send confirmation to admin
-        admin_html = f"""
-        <html>
-        <body>
-            <h2>Expense Rejection Confirmation</h2>
-            <p>You have rejected expense {expense_id}</p>
-            <p><strong>Amount:</strong> ₹{expense_details['amount']}</p>
-            <p><strong>Employee:</strong> {updated_expense['employeeId']}</p>
-            <p><strong>AI Analysis:</strong> {expense_details['aiSummary']}</p>
-            <p><strong>Fraud Score:</strong> {expense_details['fraudScore']}</p>
-            <p><strong>Rejection Reason:</strong> {reason}</p>
-        </body>
-        </html>
-        """
-        send_email(
-            "samyaknahar004@gmail.com",  # Admin email
-            f"Expense {expense_id} Rejected",
-            admin_html
-        )
-
-        return {"status": "success", "message": "Expense rejected successfully"}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        app, 
+        host=os.getenv('HOST', '0.0.0.0'),
+        port=int(os.getenv('PORT', 8080))
+    )
