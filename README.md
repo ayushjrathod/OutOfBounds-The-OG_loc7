@@ -45,18 +45,18 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 #### Frontend
 
-- Next.js: A React framework for server-side rendering and generating static websites.
-- React: A JavaScript library for building user interfaces.
-- Tailwind CSS: A utility-first CSS framework for rapid UI development.
-- NextAuth.js: Authentication for Next.js applications.
-- Zod: A TypeScript-first schema declaration and validation library.
-- Three.js: A JavaScript 3D library.
-- Spline: Spline is a free 3D design software.
-- ShadCN: A UI library
+- [Next.js](https://nextjs.org/): A React framework for server-side rendering and generating static websites. Created by Vercel.
+- [React](https://react.dev/): A JavaScript library for building user interfaces. Developed by Meta (formerly Facebook).
+- [Tailwind CSS](https://tailwindcss.com/): A utility-first CSS framework for rapid UI development. Created by Tailwind Labs.
+- [NextAuth.js](https://next-auth.js.org/): Authentication for Next.js applications. Created by Balázs Orbán and contributors.
+- [Zod](https://zod.dev/): A TypeScript-first schema declaration and validation library. Created by Colin McDonnell.
+- [Three.js](https://threejs.org/): A JavaScript 3D library. Created by Ricardo Cabello (Mr.doob).
+- [Spline](https://spline.design/): A free 3D design software. Created by Spline™.
+- [shadcn/ui](https://ui.shadcn.com/): A UI component library. Created by shadcn.
 
 #### Backend
 
-- FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints.
+- [FastAPI](https://fastapi.tiangolo.com/): A modern, fast web framework for building APIs with Python 3.6+. Created by Sebastián Ramírez.
 
 ### Environment Variables
 
