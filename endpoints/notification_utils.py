@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 from dotenv import load_dotenv
+from datetime import datetime  # Add this import
 
 load_dotenv()
 
@@ -32,52 +33,168 @@ def send_email(receiver_email: str, subject: str, html_content: str) -> tuple[bo
     except Exception as e:
         return False, f"Error sending email: {str(e)}"
 
-def create_expense_email(status: str, expense_id: str, reason: Optional[str] = None) -> str:
-    template = {
-        "pending": {
-            "subject": "Expense Request Received",
-            "title": "Expense Request Acknowledgment",
-            "message": f"Your expense request ({expense_id}) has been received and is being processed.",
-            "color": "#007bff"
+def create_expense_notification_email(expense_data: dict, notification_type: str, reason: str = None) -> str:
+    """Create email template for different expense notifications"""
+    
+    expense_details = expense_data["expenses"][0]
+    status_colors = {
+        "pending": "#007bff",
+        "approved": "#28a745",
+        "rejected": "#dc3545"
+    }
+
+    templates = {
+        "submission": {
+            "subject": "New Expense Submission",
+            "title": "Expense Submission Receipt",
+            "color": status_colors["pending"],
+            "icon": "📝"
         },
         "approved": {
-            "subject": "Expense Request Approved",
+            "subject": "Expense Approved",
             "title": "Expense Request Approved",
-            "message": f"Your expense request ({expense_id}) has been approved.",
-            "color": "#28a745"
+            "color": status_colors["approved"],
+            "icon": "✅"
         },
         "rejected": {
-            "subject": "Expense Request Rejected",
+            "subject": "Expense Rejected",
             "title": "Expense Request Rejected",
-            "message": f"Your expense request ({expense_id}) has been rejected.",
-            "color": "#dc3545"
+            "color": status_colors["rejected"],
+            "icon": "❌"
         }
-    }[status.lower()]
+    }
 
-    reason_text = f"<p><strong>Reason:</strong> {reason}</p>" if reason else ""
+    template = templates[notification_type]
     
     return f"""
     <html>
     <head>
         <style>
-            body {{ font-family: Arial, sans-serif; }}
-            .container {{ max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }}
-            .header {{ background-color: {template['color']}; color: white; padding: 10px; text-align: center; border-radius: 10px 10px 0 0; }}
-            .content {{ padding: 20px; }}
-            .footer {{ background-color: #f8f9fa; padding: 10px; text-align: center; border-radius: 0 0 10px 10px; }}
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; }}
+            .container {{ max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 15px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }}
+            .header {{ 
+                background-color: {template["color"]}; 
+                color: white; 
+                padding: 20px; 
+                text-align: center; 
+                border-radius: 12px 12px 0 0;
+                position: relative;
+            }}
+            .icon {{
+                font-size: 48px;
+                margin-bottom: 10px;
+            }}
+            .content {{ padding: 30px; background-color: #ffffff; }}
+            .footer {{ 
+                background-color: #f8f9fa; 
+                padding: 20px; 
+                text-align: center; 
+                border-radius: 0 0 12px 12px;
+                border-top: 1px solid #eee;
+            }}
+            .details {{ 
+                margin: 20px 0; 
+                padding: 20px; 
+                background-color: #f8f9fa; 
+                border-radius: 10px;
+                border-left: 4px solid {template["color"]};
+            }}
+            .fraud-alert {{ 
+                color: #dc3545; 
+                padding: 15px; 
+                border: 2px solid #dc3545; 
+                border-radius: 8px; 
+                margin: 15px 0;
+                background-color: #fff5f5;
+            }}
+            .status-badge {{
+                display: inline-block;
+                padding: 8px 15px;
+                border-radius: 20px;
+                background-color: {template["color"]};
+                color: white;
+                font-weight: bold;
+                margin: 10px 0;
+            }}
+            .amount {{ 
+                font-size: 24px; 
+                font-weight: bold; 
+                color: {template["color"]};
+                margin: 15px 0;
+            }}
+            .detail-row {{
+                display: flex;
+                justify-content: space-between;
+                margin: 8px 0;
+                padding: 8px 0;
+                border-bottom: 1px solid #eee;
+            }}
+            .detail-label {{
+                font-weight: bold;
+                color: #666;
+            }}
+            .reason-box {{
+                margin-top: 20px;
+                padding: 15px;
+                background-color: #f8f9fa;
+                border-radius: 8px;
+                border-left: 4px solid {template["color"]};
+            }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>{template['title']}</h1>
+                <div class="icon">{template["icon"]}</div>
+                <h1>{template["title"]}</h1>
             </div>
             <div class="content">
-                <p>{template['message']}</p>
-                {reason_text}
+                <div class="status-badge">{notification_type.upper()}</div>
+                
+                <div class="amount">
+                    ₹{expense_details["amount"]:,.2f}
+                </div>
+
+                <div class="details">
+                    <div class="detail-row">
+                        <span class="detail-label">Expense ID:</span>
+                        <span>{expense_details["expenseId"]}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Type:</span>
+                        <span>{expense_details["expenseType"]}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span>
+                        <span>{expense_details["date"]}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Vendor:</span>
+                        <span>{expense_details["vendor"]}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Description:</span>
+                        <span>{expense_details["description"]}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Categories:</span>
+                        <span>{", ".join(expense_details["categories"])}</span>
+                    </div>
+                </div>
+
+                {f'''<div class="fraud-alert">
+                    <h3>⚠️ AI Analysis</h3>
+                    <p>{expense_details["aiSummary"]}</p>
+                </div>''' if expense_details["isAnomaly"] else ''}
+
+                {f'''<div class="reason-box">
+                    <h3>💬 {notification_type.title()} Reason:</h3>
+                    <p>{reason}</p>
+                </div>''' if reason else ''}
             </div>
             <div class="footer">
-                <p>Best regards,<br>Finance Department</p>
+                <p>This is an automated message from the Finance Department</p>
+                <small style="color: #666;">Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</small>
             </div>
         </div>
     </body>
