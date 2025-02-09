@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Insight Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-5">
+  <div class="w-full max-w-4xl bg-white shadow-md rounded-lg p-6">
+    <h1 class="text-2xl font-bold text-gray-800">KoKo - Expense Insight Assistant</h1>
+    <p class="text-gray-600 mt-2">Record your responses to questions about your expense claim.</p>
+
+    <div class="mt-5 flex items-center space-x-4">
+      <button id="record-btn" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">Start Recording</button>
+      <button id="stop-btn" disabled class="bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed">Stop Recording</button>
+    </div>
+
+    <div id="loader-container" class="hidden mt-4 flex items-center">
+      <span class="text-gray-700">Processing</span>
+      <div class="ml-2 w-5 h-5 border-4 border-t-blue-500 border-gray-300 rounded-full animate-spin"></div>
+    </div>
+
+    <div id="questions-remaining" class="font-bold text-gray-700 mt-5"></div>
+    <div id="conversation" class="mt-5 bg-gray-50 p-4 rounded-lg border border-gray-300 h-64 overflow-y-auto"></div>
+    <div id="transcription" class="mt-5 text-gray-800"></div>
+    <div id="llm-response" class="mt-5 text-gray-800"></div>
+   </div>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let sessionId = Math.random().toString(36).substring(7);
+
+    const recordButton = document.getElementById('record-btn');
+    const stopButton = document.getElementById('stop-btn');
+
+    recordButton.addEventListener('click', startRecording);
+    stopButton.addEventListener('click', stopRecording);
+
+    async function startRecording() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.start();
+
+      audioChunks = [];
+      mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+
+      recordButton.disabled = true;
+      recordButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+      recordButton.classList.add('bg-red-500', 'hover:bg-red-600');
+      recordButton.textContent = 'Recording...';
+
+      stopButton.disabled = false;
+      stopButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+      stopButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+    }
+
+    function stopRecording() {
+      mediaRecorder.stop();
+      recordButton.disabled = false;
+      recordButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+      recordButton.classList.add('bg-green-500', 'hover:bg-green-600');
+      recordButton.textContent = 'Start Recording';
+
+      stopButton.disabled = true;
+      stopButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+      stopButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'recording.wav');
+
+        document.getElementById('loader-container').classList.remove('hidden');
+
+        try {
+          const response = await fetch(`http://localhost:8000/conversation?session_id=${sessionId}`, {
+            method: 'POST',
+            body: formData
+          });
+
+          const result = await response.json();
+
+          document.getElementById('loader-container').classList.add('hidden');
+          document.getElementById('transcription').textContent = `Your Response: ${result.transcription}`;
+          const llmResponseDiv = document.getElementById('llm-response');
+          llmResponseDiv.textContent = `Assistant Response: ${result.response}`;
+
+          const conversationDiv = document.getElementById('conversation');
+          conversationDiv.innerHTML += `
+            <div class="message user font-bold text-blue-600"><strong>You:</strong> ${result.transcription}</div>
+            <div class="message assistant font-bold text-green-600"><strong>Assistant:</strong> ${result.response}</div>
+          `;
+
+          if (result.audio_responses.length > 0) {
+            playAudioSequence(result.audio_responses);
+          }
+
+          conversationDiv.scrollTop = conversationDiv.scrollHeight;
+        } catch (error) {
+          console.error('Error:', error);
+          alert('An error occurred. Please try again.');
+          document.getElementById('loader-container').classList.add('hidden');
+        }
+      };
+    }
+
+    function playAudioSequence(audioFiles) {
+      let currentIndex = 0;
+
+      function playNextAudio() {
+        if (currentIndex < audioFiles.length) {
+          const audioPlayer = new Audio(audioFiles[currentIndex]);
+          audioPlayer.play();
+          audioPlayer.onended = () => {
+            currentIndex++;
+            playNextAudio();
+          };
+        }
+      }
+
+      playNextAudio();
+    }
+  </script>
+</body>
+</html>
