@@ -61,7 +61,7 @@ export function ExpenseList({ expenses, showEmployeeId = false, linkPrefix }: Ex
                 </Badge>
               )}
             </TableCell>
-            <TableCell>${expense.amount.toFixed(2)}</TableCell>
+            <TableCell>{`₹${expense.amount.toFixed(2)}`}</TableCell>
           </TableRow>
         ))}
       </TableBody>

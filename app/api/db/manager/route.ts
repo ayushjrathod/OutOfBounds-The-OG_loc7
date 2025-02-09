@@ -9,21 +9,36 @@ export async function GET() {
 
   try {
     await client.connect();
-    const db = client.db("expensesDB"); // specify name if needed
-    const collections = await db.collection("EmployeeExpenses").find().toArray(); // Convert cursor to array
-    // Flatten the response: map each document's expenses array and convert date to Date object.
+    const db = client.db("expensesDB");
+    const collections = await db.collection("EmployeeExpenses").find().toArray();
+
     const expenses = collections.flatMap((doc: any) =>
       doc.expenses.map((exp: any) => ({
         expenseId: exp.expenseId,
+        expenseType: exp.expenseType,
         description: exp.description,
         date: new Date(exp.date),
         employeeId: exp.employeeId || doc.employeeId,
+        departmentId: doc.departmentId,
+        vendor: exp.vendor,
+        categories: exp.categories,
+        receiptImage: exp.receiptImage,
+        bill_number: exp.bill_number,
         status: exp.status,
-        amount: exp.amount,
-        fraudScore: exp.fraudScore,
+        amount: typeof exp.amount === "number" ? exp.amount : exp.amount.$numberDouble,
+        fraudScore: typeof exp.fraudScore === "number" ? exp.fraudScore : exp.fraudScore.$numberDouble,
         isAnomaly: exp.isAnomaly,
-        // Include item_details for calculation if provided
-        item_details: exp.item_details || [],
+        item_details: (exp.item_details || []).map((item: any) => ({
+          name: item.name,
+          price: typeof item.price === "number" ? item.price : item.price.$numberDouble,
+        })),
+        aiSummary: exp.aiSummary,
+        submittedDate: new Date(exp.submittedDate),
+        approvalDate: exp.approvalDate ? new Date(exp.approvalDate) : null,
+        approvedBy: exp.approvedBy,
+        rejectionReason: exp.rejectionReason,
+        createdAt: exp.createdAt,
+        updatedAt: exp.updatedAt,
       }))
     );
     return NextResponse.json(expenses);

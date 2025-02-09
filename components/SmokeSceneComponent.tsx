@@ -5,7 +5,7 @@ import { SmokeScene } from "react-smoke";
 import * as THREE from "three";
 
 export default function SmokeSceneComponent() {
-  const smokeColor = useMemo(() => new THREE.Color("purple"), []);
+  const smokeColor = useMemo(() => new THREE.Color("white"), []);
 
   return (
     <div

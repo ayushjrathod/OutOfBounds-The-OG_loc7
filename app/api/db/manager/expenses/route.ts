@@ -20,7 +20,20 @@ export async function GET(request: Request) {
         .aggregate([
           { $unwind: "$expenses" },
           { $match: { "expenses.expenseId": id } },
-          { $project: { expense: "$expenses", _id: 0 } },
+          {
+            $project: {
+              expense: {
+                $mergeObjects: [
+                  "$expenses",
+                  {
+                    employeeId: "$employeeId",
+                    departmentId: "$departmentId",
+                  },
+                ],
+              },
+              _id: 0,
+            },
+          },
         ])
         .toArray();
       if (result[0]) {
@@ -77,31 +90,45 @@ export async function PUT(request: Request) {
         const payload = { reason: data.reason || "Approved - all documentation correct" };
         console.log("Making approval API call with payload:", payload);
 
-        const response = await fetch(`http://localhost:8000/api/expenses/${id}/accept`, {
+        const response = await fetch(`http://localhost:8000/api/expenses/${id}/approve`, {
           method: "POST",
           body: JSON.stringify(payload),
           headers: { "Content-Type": "application/json" },
         });
 
         console.log("Approval API response status:", response.status);
-        const responseData = await response.text();
-        console.log("Approval API response body:", responseData);
+        const responseData = await response.json();
+        console.log("Approval API response:", responseData);
+
+        // Log email notification status
+        if (responseData.employee_email) {
+          console.log("Employee email status:", responseData.employee_email.success ? "Sent" : "Failed");
+          if (!responseData.employee_email.success) {
+            console.warn("Employee email error:", responseData.employee_email.message);
+          }
+        }
+        if (responseData.admin_email) {
+          console.log("Admin email status:", responseData.admin_email.success ? "Sent" : "Failed");
+          if (!responseData.admin_email.success) {
+            console.warn("Admin email error:", responseData.admin_email.message);
+          }
+        }
       } else if (data.status === "Declined") {
-        const formData = new FormData();
-        formData.append("reason", data.reason || "Rejected - insufficient documentation");
-        console.log("Making rejection API call with reason:", formData.get("reason"));
+        const payload = { reason: data.reason || "Rejected - insufficient documentation" };
+        console.log("Making rejection API call with payload:", payload);
 
         const response = await fetch(`http://localhost:8000/api/expenses/${id}/reject`, {
           method: "POST",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
 
         console.log("Rejection API response status:", response.status);
-        const responseData = await response.text();
-        console.log("Rejection API response body:", responseData);
+        const responseData = await response.json();
+        console.log("Rejection API response:", responseData);
       }
 
-      console.log("Backend notification completed successfully");
+      console.log("Backend notification completed");
     } catch (error) {
       console.error("Error notifying backend:", error);
       console.error("Error details:", {
@@ -112,7 +139,15 @@ export async function PUT(request: Request) {
       // Continue execution even if notification fails
     }
 
-    return NextResponse.json({ success: true, status: data.status });
+    return NextResponse.json({
+      success: true,
+      status: data.status,
+      notifications: {
+        backend: true,
+        emailsSent: false, // Indicate email sending status
+        message: "Status updated but there were issues sending notification emails",
+      },
+    });
   } finally {
     await client.close();
   }

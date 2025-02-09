@@ -215,9 +215,9 @@ export default function ExpenseDetails({ params }: { params: { id: string } }) {
             <div className="space-y-2">
               {expense.item_details.map((item: any, index: number) => (
                 <div key={index} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-                  <span className="font-medium text-gray-700">{item.item}</span>
+                  <span className="font-medium text-gray-700">{item.name}</span>
                   <span className="text-gray-600">
-                    ₹{(typeof item.amount !== "string" ? parseFloat(item.amount) : item.amount).toFixed(2)}
+                    ₹{(typeof item.price !== "string" ? parseFloat(item.price) : item.price).toFixed(2)}
                   </span>
                 </div>
               ))}

@@ -1,5 +1,6 @@
 "use client";
 import { ExpenseList2 } from "@/components/ExpenseList2";
+import { PixelatedText } from "@/components/PixelatedText";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
@@ -34,6 +35,11 @@ export default function UserDashboard() {
     {
       label: "Chatbot",
       href: "/chat",
+      icon: <IconSettings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+    },
+    {
+      label: "Insights",
+      href: "/vis",
       icon: <IconSettings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
     },
     {
@@ -105,7 +111,21 @@ const Dashboard = () => {
   // Calculate statistics
   const totalApprovedExpenditures = data
     .filter((exp: any) => exp.status === "Approved")
-    .reduce((acc: number, exp: any) => acc + exp.amount, 0);
+    .reduce((acc: number, exp: any) => {
+      const amount = typeof exp.amount === "number" ? exp.amount : parseFloat(exp.amount.$numberDouble);
+      return acc + (isNaN(amount) ? 0 : amount);
+    }, 0);
+
+  const averageFraudScore =
+    data.length > 0
+      ? data.reduce((acc: number, exp: any) => {
+          const score = typeof exp.fraudScore === "number" ? exp.fraudScore : parseFloat(exp.fraudScore.$numberDouble);
+          return acc + (isNaN(score) ? 0 : score);
+        }, 0) / data.length
+      : 0;
+
+  const anomalies = data.filter((exp: any) => exp.isAnomaly).length;
+
   const approvedRequests = data.filter((exp: any) => exp.status === "Approved").length;
   const pendingRequests = data.filter((exp: any) => exp.status === "Pending").length;
   const declinedRequests = data.filter((exp: any) => exp.status === "Declined").length;
@@ -123,7 +143,9 @@ const Dashboard = () => {
     <div className="flex flex-1 overflow-auto">
       {" "}
       <div className="p-4 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex flex-col gap-4 flex-1 w-full overflow-y-auto">
-        <h1 className="text-4xl font-bold">Manager Dashboard</h1>
+        <h1 className="text-4xl font-bold">
+          <PixelatedText text="Manager Dashboard" interval={100} />
+        </h1>
         <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
           <Card className="hover:shadow-md transition-shadow duration-300">
             <CardContent className="mt-4">
@@ -147,6 +169,18 @@ const Dashboard = () => {
             <CardContent className="mt-4">
               <h2 className="text-lg font-medium">Total Declined Requests:</h2>
               <p className="text-2xl font-bold">{declinedRequests}</p>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow duration-300">
+            <CardContent className="mt-4">
+              <h2 className="text-lg font-medium">Average Fraud Score:</h2>
+              <p className="text-2xl font-bold">{averageFraudScore.toFixed(2)}</p>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow duration-300">
+            <CardContent className="mt-4">
+              <h2 className="text-lg font-medium">Detected Anomalies:</h2>
+              <p className="text-2xl font-bold">{anomalies}</p>
             </CardContent>
           </Card>
         </div>

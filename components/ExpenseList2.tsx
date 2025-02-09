@@ -6,11 +6,16 @@ interface Expense {
   expenseId: string;
   description: string;
   date: Date;
+  submittedDate: Date;
   employeeId?: string;
   status: string;
   amount: number;
   fraudScore: number;
   isAnomaly: boolean;
+  item_details?: {
+    name: string;
+    price: number;
+  }[];
 }
 
 interface ExpenseListProps {
@@ -27,6 +32,7 @@ export function ExpenseList2({ expenses, showEmployeeId = false, linkPrefix }: E
           <TableHead>Description</TableHead>
           {showEmployeeId && <TableHead>Employee ID</TableHead>}
           <TableHead>Date</TableHead>
+          <TableHead>Submitted Date</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Amount</TableHead>
           <TableHead>Anomaly Score</TableHead>
@@ -48,6 +54,11 @@ export function ExpenseList2({ expenses, showEmployeeId = false, linkPrefix }: E
               )}
             </TableCell>
             <TableCell className="py-4">
+              {new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(
+                new Date(expense.submittedDate)
+              )}
+            </TableCell>
+            <TableCell className="py-4">
               <Badge
                 variant={
                   expense.status === "Approved" ? "default" : expense.status === "Pending" ? "pending" : "destructive"
@@ -56,7 +67,7 @@ export function ExpenseList2({ expenses, showEmployeeId = false, linkPrefix }: E
                 {expense.status}
               </Badge>
             </TableCell>
-            <TableCell className="py-4">{`₹${expense.amount.toFixed(2)}`}</TableCell>
+            <TableCell className="py-4">{`₹${typeof expense.amount === "number" ? expense.amount.toFixed(2) : parseFloat(expense.amount).toFixed(2)}`}</TableCell>
             <TableCell className="py-4">{(expense.fraudScore * 100).toFixed(1)}%</TableCell>
             <TableCell className="py-4">
               <span className={expense.isAnomaly ? "text-red-600 font-medium" : "text-gray-900"}>

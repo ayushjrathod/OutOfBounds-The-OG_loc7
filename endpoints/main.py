@@ -160,61 +160,59 @@ async def create_expense(
 
             # Send detailed notification to admin
             admin_html = f"""
-            <html>
-            <head>
-                <style>
-                    body {{ font-family: 'Segoe UI', sans-serif; line-height: 1.6; }}
-                    .container {{ max-width: 600px; margin: 20px auto; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }}
-                    .header {{ background-color: #007bff; color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center; }}
-                    .content {{ padding: 20px; }}
-                    .details {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }}
-                    .amount {{ font-size: 24px; color: #28a745; font-weight: bold; }}
-                    .warning {{ background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin: 10px 0; }}
-                    .action-needed {{ background-color: #dc3545; color: white; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }}
-                    .footer {{ text-align: center; padding: 20px; color: #6c757d; }}
-                    .button {{ display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; margin: 10px; }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>🧾 New Expense Submission</h1>
-                    </div>
-                    <div class="content">
-                        <div class="action-needed">
-                            <h2>⚠️ Action Required: Review Needed</h2>
-                        </div>
-                        
-                        <div class="details">
-                            <h3>Expense Details:</h3>
-                            <p><strong>Employee ID:</strong> {stored_expense['employeeId']}</p>
-                            <p><strong>Department:</strong> {stored_expense['departmentId']}</p>
-                            <p><strong>Type:</strong> {stored_expense['expenses'][0]['expenseType']}</p>
-                            <p><strong>Amount:</strong> <span class="amount">₹{stored_expense['expenses'][0]['amount']:,.2f}</span></p>
-                            <p><strong>Date:</strong> {stored_expense['expenses'][0]['date']}</p>
-                            <p><strong>Description:</strong> {stored_expense['expenses'][0]['description']}</p>
-                            <p><strong>Categories:</strong> {', '.join(stored_expense['expenses'][0]['categories'])}</p>
-                        </div>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', sans-serif; line-height: 1.6; }}
+        .container {{ max-width: 600px; margin: 20px auto; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }}
+        .header {{ background-color: #007bff; color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center; }}
+        .content {{ padding: 20px; }}
+        .details {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }}
+        .amount {{ font-size: 24px; color: #28a745; font-weight: bold; }}
+        .warning {{ background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin: 10px 0; }}
+        .action-needed {{ background-color: #dc3545; color: white; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }}
+        .footer {{ text-align: center; padding: 20px; color: #6c757d; }}
+        .button {{ display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; margin: 10px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧾 New Expense Submission</h1>
+        </div>
+        <div class="content">
+            <div class="action-needed">
+                <h2>⚠️ Action Required: Review Needed</h2>
+            </div>
+            
+            <div class="details">
+                <h3>Expense Details:</h3>
+                <p><strong>Employee ID:</strong> {stored_expense['employeeId']}</p>
+                <p><strong>Department:</strong> {stored_expense['departmentId']}</p>
+                <p><strong>Type:</strong> {stored_expense['expenses'][0]['expenseType']}</p>
+                <p><strong>Amount:</strong> <span class="amount">₹{stored_expense['expenses'][0]['amount']:,.2f}</span></p>
+                <p><strong>Date:</strong> {stored_expense['expenses'][0]['date']}</p>
+                <p><strong>Description:</strong> {stored_expense['expenses'][0]['description']}</p>
+                <p><strong>Categories:</strong> {', '.join(stored_expense['expenses'][0]['categories'])}</p>
+            </div>
 
-                        {'<div class="warning">' + f"""
-                            <h3>⚠️ AI Analysis Flagged This Expense:</h3>
-                            <p>{stored_expense['expenses'][0]['aiSummary']}</p>
-                            <p><strong>Fraud Score:</strong> {stored_expense['expenses'][0]['fraudScore']}</p>
-                        """ + '</div>' if stored_expense['expenses'][0].get('isAnomaly', False) else ''}
+            {'''<div class="warning">
+                <h3>AI Analysis Flagged This Expense:</h3>
+                <p>{}</p>
+                <p><strong>Fraud Score:</strong> {}</p>
+            </div>'''.format(stored_expense['expenses'][0]['aiSummary'], stored_expense['expenses'][0]['fraudScore']) if stored_expense['expenses'][0].get('isAnomaly', False) else ''}
 
-                        <div style="text-align: center; margin-top: 20px;">
-                            <a href="http://localhost:3000/admin/expenses" class="button">Review Expense</a>
-                        </div>
-                    </div>
-                    <div class="footer">
-                        <p>Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-
-            # Send to admin
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="http://localhost:3000/admin/expenses" class="button">Review Expense</a>
+            </div>
+        </div>
+        <div class="footer">
+            <p>Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
             admin_success, admin_message = send_email(
                 "samyaknahar004@gmail.com",  # Admin email
                 f"🧾 New Expense Submission - {stored_expense['expenses'][0]['expenseType']}",
@@ -767,7 +765,7 @@ except Exception as e:
     print(f"MongoDB connection failed: {str(e)}")
     raise HTTPException(status_code=500, detail="Database connection failed")
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     import uvicorn
     uvicorn.run(
         app, 
