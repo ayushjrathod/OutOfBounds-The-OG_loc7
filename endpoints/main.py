@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from db import db
-from models import ExpenseCreate
+from models import ExpenseCreate, EmailRequest, ApprovalRequest
 from utils import process_expense
 import os
 from dotenv import load_dotenv
@@ -9,6 +9,9 @@ from google import genai
 from datetime import datetime
 from pymongo import MongoClient  # Add this import
 from pymongo.server_api import ServerApi  # Add this import
+from notification_utils import send_email, create_expense_notification_email
+from typing import Dict, Any
+from bson import ObjectId
 
 load_dotenv()
 
@@ -58,73 +61,73 @@ async def create_expense(
     receiptImage: str = Form(...)  # Changed to accept Cloudinary URL
 ):
     try:
-        # Test connection before processing
-        db.command("ping")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Database connection not available")
-        
-    # First validate employee and department existence
-    try:
-        # Check if employee exists in the correct department
-        query = {
-            "departmentId": departmentId,
-            "employees": {
-                "$elemMatch": {
-                    "id": employeeId
+        # Initialize fresh DB connection for this request
+        uri = os.getenv('MONGO_URL_prathamesh')
+        client = MongoClient(uri, server_api=ServerApi('1'))
+        db = client.expensesDB
+
+        # First validate employee and department existence
+        try:
+            # Check if employee exists in the correct department
+            query = {
+                "departmentId": departmentId,
+                "employees": {
+                    "$elemMatch": {
+                        "id": employeeId
+                    }
                 }
             }
-        }
-        print("Executing query:", query)  # Log the query
-        department_employee = db.DepartmentsEmployees.find_one(query)
-        print("Query result:", department_employee)  # Log the result
-        
-        if not department_employee:
-            # If not found, check if it's because of invalid IDs
-            # Remove hardcoded validation
-            # if employeeId not in VALID_EMPLOYEE_IDS:
-            #     raise HTTPException(
-            #         status_code=400,
-            #         detail=f"Invalid employee ID. Must be one of: {', '.join(VALID_EMPLOYEE_IDS)}"
-            #     )
+            print("Executing query:", query)
+            department_employee = db.DepartmentsEmployees.find_one(query)
+            print("Query result:", department_employee)
             
-            # If IDs are valid but relationship not found
+            if not department_employee:
+                # Try to find if department and employee exist separately
+                dept = db.DepartmentsEmployees.find_one({"departmentId": departmentId})
+                if not dept:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Department {departmentId} does not exist"
+                    )
+                
+                emp_exists = db.DepartmentsEmployees.find_one(
+                    {"employees.id": employeeId}
+                )
+                if not emp_exists:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Employee {employeeId} does not exist"
+                    )
+                
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Employee {employeeId} is not associated with department {departmentId}"
+                )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"Database query error: {str(e)}")
             raise HTTPException(
-                status_code=400,
-                detail=f"Employee {employeeId} is not associated with department {departmentId}"
+                status_code=500,
+                detail="Error validating employee and department relationship"
             )
 
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=500,
-            detail="Error validating employee and department relationship"
-        )
+        # Convert categories string into list (could be single or multiple)
+        if ',' in categories:
+            categories_list = [cat.strip() for cat in categories.split(',')]
+        else:
+            categories_list = [categories.strip()]
 
-    # Validate expense type
-    if categories not in VALID_EXPENSE_CATEGORIES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid expense type. Must be one of: {', '.join(VALID_EXPENSE_CATEGORIES)}"
-        )
-    
-    # Validate and parse categories
-    try:
-        categories_list = [cat.strip() for cat in categories.split(',')]
+        # Validate each category
         for cat in categories_list:
             if cat not in VALID_EXPENSE_CATEGORIES:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid category: {cat}. Must be one of: {', '.join(VALID_EXPENSE_CATEGORIES)}"
                 )
-    except Exception:
-        raise HTTPException(
-            status_code=400,
-            detail="Categories must be comma-separated values"
-        )
 
-    try:
-        # Create expense object with Cloudinary URL
+        # Process and store the expense
         expense = ExpenseCreate(
             employeeId=employeeId,
             departmentId=departmentId,
@@ -132,26 +135,32 @@ async def create_expense(
             description=description,
             vendor=vendor,
             categories=categories_list,
-            receipt_image=receiptImage,  # Use Cloudinary URL directly
+            receipt_image=receiptImage,
             content_type="image/url"
         )
         
-        # Process and store the expense
-        result = process_expense(expense, db)
-        return {
-            "status": "success", 
-            "expense_id": str(result.inserted_id),
-            "message": "Expense processed successfully"
-        }
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # Process expense
+        try:
+            result = process_expense(expense, db)
+            stored_expense = db.EmployeeExpenses.find_one({"_id": result.inserted_id})
+            if not stored_expense or "expenses" not in stored_expense:
+                raise ValueError("Failed to store expense properly")
+                
+            # Send notifications...
+            # ...rest of existing code...
+
+        except Exception as e:
+            print(f"Error processing expense: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error processing expense: {str(e)}"
+            )
+
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error processing expense: {str(e)}")
-        raise HTTPException(
-            status_code=500, 
-            detail="An error occurred while processing the expense"
-        )
+        print(f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Remove the /api/files endpoint since we're using Cloudinary
 
@@ -361,6 +370,287 @@ async def get_employee_categories():
     ]
     result = list(db.EmployeeExpenses.aggregate(pipeline))
     return result
+
+def create_decision_email(expense: dict, decision: str, reason: str) -> str:
+    status_colors = {
+        "approved": "#28a745",
+        "rejected": "#dc3545"
+    }
+    
+    icons = {
+        "approved": "✅",
+        "rejected": "❌"
+    }
+
+    return f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; background-color: #f5f5f5; margin: 0; padding: 20px; }}
+            .container {{ max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 15px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }}
+            .header {{ 
+                background-color: {status_colors[decision]}; 
+                color: white; 
+                padding: 30px 20px;
+                text-align: center; 
+                border-radius: 15px 15px 0 0;
+            }}
+            .icon {{ font-size: 48px; margin-bottom: 15px; }}
+            .decision-badge {{
+                display: inline-block;
+                padding: 8px 20px;
+                background-color: rgba(255, 255, 255, 0.2);
+                border-radius: 20px;
+                font-weight: bold;
+                margin: 10px 0;
+            }}
+            .content {{ padding: 30px; }}
+            .amount-section {{
+                text-align: center;
+                padding: 20px;
+                margin: 20px 0;
+                background-color: #f8f9fa;
+                border-radius: 10px;
+            }}
+            .amount {{ 
+                font-size: 32px; 
+                font-weight: bold; 
+                color: {status_colors[decision]};
+            }}
+            .details-grid {{
+                display: grid;
+                grid-template-columns: auto 1fr;
+                gap: 15px;
+                margin: 20px 0;
+                padding: 20px;
+                background-color: #f8f9fa;
+                border-radius: 10px;
+                border-left: 4px solid {status_colors[decision]};
+            }}
+            .label {{ 
+                font-weight: bold; 
+                color: #666;
+                padding-right: 20px;
+            }}
+            .value {{ color: #333; }}
+            .reason-box {{
+                margin: 20px 0;
+                padding: 20px;
+                background-color: #f8f9fa;
+                border-radius: 10px;
+                border-left: 4px solid {status_colors[decision]};
+            }}
+            .reason-title {{
+                margin: 0 0 10px 0;
+                color: #444;
+                font-size: 18px;
+            }}
+            .footer {{
+                background-color: #f8f9fa;
+                color: #666;
+                text-align: center;
+                padding: 20px;
+                border-radius: 0 0 15px 15px;
+                border-top: 1px solid #eee;
+            }}
+            .timestamp {{
+                font-size: 12px;
+                color: #888;
+                margin-top: 10px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="icon">{icons[decision]}</div>
+                <div class="decision-badge">EXPENSE {decision.upper()}</div>
+                <h1>Expense {decision.title()}</h1>
+            </div>
+            
+            <div class="content">
+                <div class="amount-section">
+                    <div>Total Amount</div>
+                    <div class="amount">₹{expense['expenses'][0]['amount']:,.2f}</div>
+                </div>
+
+                <div class="details-grid">
+                    <div class="label">Expense ID:</div>
+                    <div class="value">{expense['expenses'][0]['expenseId']}</div>
+                    
+                    <div class="label">Employee ID:</div>
+                    <div class="value">{expense['employeeId']}</div>
+                    
+                    <div class="label">Department:</div>
+                    <div class="value">{expense['departmentId']}</div>
+                    
+                    <div class="label">Type:</div>
+                    <div class="value">{expense['expenses'][0]['expenseType']}</div>
+                    
+                    <div class="label">Date:</div>
+                    <div class="value">{expense['expenses'][0]['date']}</div>
+                    
+                    <div class="label">Vendor:</div>
+                    <div class="value">{expense['expenses'][0]['vendor']}</div>
+                    
+                    <div class="label">Categories:</div>
+                    <div class="value">{', '.join(expense['expenses'][0]['categories'])}</div>
+                </div>
+
+                <div class="reason-box">
+                    <h3 class="reason-title">💬 Reason for {decision.title()}:</h3>
+                    <p>{reason}</p>
+                </div>
+
+                {f'''
+                <div class="reason-box" style="border-color: #dc3545;">
+                    <h3 class="reason-title" style="color: #dc3545;">⚠️ AI Analysis:</h3>
+                    <p>{expense['expenses'][0]['aiSummary']}</p>
+                </div>
+                ''' if expense['expenses'][0].get('isAnomaly', False) else ''}
+            </div>
+            
+            <div class="footer">
+                <p>This is an automated message from the Finance Department</p>
+                <div class="timestamp">Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.post("/api/expenses/{expense_id}/approve")
+async def approve_expense(expense_id: str, request: Request):
+    try:
+        # Get request body
+        body = await request.json()
+        reason = body.get('reason')
+        uri = os.getenv('MONGO_URL_prathamesh')
+        client = MongoClient(uri, server_api=ServerApi('1'))
+        db = client.expensesDB
+
+        # First try to find by expenseId in the expenses array
+        expense = db.EmployeeExpenses.find_one({
+            "expenses": {
+                "$elemMatch": {
+                    "expenseId": expense_id
+                }
+            }
+        })
+
+        if not expense:
+            # If not found by expenseId, try as ObjectId
+            try:
+                expense = db.EmployeeExpenses.find_one({"_id": ObjectId(expense_id)})
+            except:
+                pass
+
+        if not expense:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Expense not found with ID: {expense_id}"
+            )
+
+        print(f"Found expense: {expense}")  # Debug print
+
+        # Send email to employee using new template
+        html_content = create_decision_email(
+            expense=expense,
+            decision="approved",
+            reason=reason
+        )
+        
+        emp_success, emp_message = send_email(
+            "samyaknahar81@gmail.com",  # Employee email
+            "Expense Request Approved",
+            html_content
+        )
+
+        # Send to admin with same template
+        admin_success, admin_message = send_email(
+            "samyaknahar004@gmail.com",  # Admin email
+            f"Expense {expense_id} Approved",
+            html_content
+        )
+
+        return {
+            "status": "success",
+            "message": "Approval notifications sent successfully",
+            "employee_email": {"success": emp_success, "message": emp_message},
+            "admin_email": {"success": admin_success, "message": admin_message}
+        }
+
+    except Exception as e:
+        print(f"Error in approve_expense: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/expenses/{expense_id}/reject")
+async def reject_expense(expense_id: str, request: Request):
+    try:
+        # Get request body
+        body = await request.json()
+        reason = body.get('reason')
+        
+        # Initialize MongoDB connection
+        uri = os.getenv('MONGO_URL_prathamesh')
+        client = MongoClient(uri, server_api=ServerApi('1'))
+        db = client.expensesDB
+
+        if not reason:
+            raise HTTPException(status_code=400, detail="Reason is required for rejection")
+
+        # First try to find by expenseId in the expenses array
+        expense = db.EmployeeExpenses.find_one({
+            "expenses": {
+                "$elemMatch": {
+                    "expenseId": expense_id
+                }
+            }
+        })
+
+        if not expense:
+            # If not found by expenseId, try as ObjectId
+            try:
+                expense = db.EmployeeExpenses.find_one({"_id": ObjectId(expense_id)})
+            except:
+                pass
+
+        if not expense:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Expense not found with ID: {expense_id}"
+            )
+
+        # Send email to employee using new template
+        html_content = create_decision_email(
+            expense=expense,
+            decision="rejected",
+            reason=reason
+        )
+        
+        emp_success, emp_message = send_email(
+            "samyaknahar81@gmail.com",
+            "Expense Request Rejected",
+            html_content
+        )
+
+        # Send to admin with same template
+        admin_success, admin_message = send_email(
+            "samyaknahar004@gmail.com",
+            f"Expense {expense_id} Rejected",
+            html_content
+        )
+
+        return {
+            "status": "success",
+            "message": "Rejection notifications sent successfully",
+            "employee_email": {"success": emp_success, "message": emp_message},
+            "admin_email": {"success": admin_success, "message": admin_message}
+        }
+
+    except Exception as e:
+        print(f"Error in reject_expense: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Update the MongoDB connection to use environment variables
 try:
